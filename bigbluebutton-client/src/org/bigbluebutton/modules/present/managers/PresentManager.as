@@ -169,6 +169,8 @@ package org.bigbluebutton.modules.present.managers
 				exportWindow.numberOfPages = e.numberOfPages;
 				exportWindow.slidesUrl = e.slidesUrl;
 				exportWindow.slideModel = e.slideModel;
+				exportWindow.presentationModel = e.presentationModel;
+				exportWindow.initConversion();
 			}
 		}
 		

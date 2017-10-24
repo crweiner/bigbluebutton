@@ -82,6 +82,11 @@ class ReceivedJsonMsgHandlerActor(
       // Users
       case GetUsersMeetingReqMsg.NAME =>
         routeGenericMsg[GetUsersMeetingReqMsg](envelope, jsonNode)
+      case AddUserToPresenterGroupCmdMsg.NAME =>
+        routeGenericMsg[AddUserToPresenterGroupCmdMsg](envelope, jsonNode)
+      case RemoveUserFromPresenterGroupCmdMsg.NAME =>
+        routeGenericMsg[RemoveUserFromPresenterGroupCmdMsg](envelope, jsonNode)
+
       // Poll
       case StartCustomPollReqMsg.NAME =>
         routeGenericMsg[StartCustomPollReqMsg](envelope, jsonNode)
@@ -107,6 +112,8 @@ class ReceivedJsonMsgHandlerActor(
       // Voice
       case RecordingStartedVoiceConfEvtMsg.NAME =>
         routeVoiceMsg[RecordingStartedVoiceConfEvtMsg](envelope, jsonNode)
+      case VoiceConfRunningEvtMsg.NAME =>
+        routeVoiceMsg[VoiceConfRunningEvtMsg](envelope, jsonNode)
       case UserJoinedVoiceConfEvtMsg.NAME =>
         routeVoiceMsg[UserJoinedVoiceConfEvtMsg](envelope, jsonNode)
       case UserLeftVoiceConfEvtMsg.NAME =>

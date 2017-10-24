@@ -62,7 +62,6 @@ class MeetingActor(
     with BreakoutApp2x
     with UsersApp2x
 
-    with PermisssionCheck
     with UserBroadcastCamStartMsgHdlr
     with UserJoinMeetingReqMsgHdlr
     with UserJoinMeetingAfterReconnectReqMsgHdlr
@@ -71,8 +70,9 @@ class MeetingActor(
     with UserDisconnectedFromGlobalAudioMsgHdlr
     with MuteAllExceptPresentersCmdMsgHdlr
     with MuteMeetingCmdMsgHdlr
+    with MuteMeetingCmdMsgHdlrCheckPerm
     with IsMeetingMutedReqMsgHdlr
-    with MuteUserCmdMsgHdlr
+
     with EjectUserFromVoiceCmdMsgHdlr
     with EndMeetingSysCmdMsgHdlr
     with DestroyMeetingSysCmdMsgHdlr
@@ -221,13 +221,16 @@ class MeetingActor(
       case m: UserJoinedVoiceConfEvtMsg => handleUserJoinedVoiceConfEvtMsg(m)
       case m: MeetingActivityResponseCmdMsg =>
         state = usersApp.handleMeetingActivityResponseCmdMsg(m, state)
-      case m: LogoutAndEndMeetingCmdMsg      => usersApp.handleLogoutAndEndMeetingCmdMsg(m, state)
-      case m: SetRecordingStatusCmdMsg       => usersApp.handleSetRecordingStatusCmdMsg(m)
-      case m: GetRecordingStatusReqMsg       => usersApp.handleGetRecordingStatusReqMsg(m)
-      case m: ChangeUserEmojiCmdMsg          => handleChangeUserEmojiCmdMsg(m)
-      case m: EjectUserFromMeetingCmdMsg     => usersApp.handleEjectUserFromMeetingCmdMsg(m)
-      case m: GetUsersMeetingReqMsg          => usersApp.handleGetUsersMeetingReqMsg(m)
-      case m: ChangeUserRoleCmdMsg           => usersApp.handleChangeUserRoleCmdMsg(m)
+      case m: LogoutAndEndMeetingCmdMsg     => usersApp.handleLogoutAndEndMeetingCmdMsg(m, state)
+      case m: SetRecordingStatusCmdMsg      => usersApp.handleSetRecordingStatusCmdMsg(m)
+      case m: GetRecordingStatusReqMsg      => usersApp.handleGetRecordingStatusReqMsg(m)
+      case m: ChangeUserEmojiCmdMsg         => handleChangeUserEmojiCmdMsg(m)
+      case m: EjectUserFromMeetingCmdMsg    => usersApp.handleEjectUserFromMeetingCmdMsg(m)
+      case m: GetUsersMeetingReqMsg         => usersApp.handleGetUsersMeetingReqMsg(m)
+      case m: ChangeUserRoleCmdMsg          => usersApp.handleChangeUserRoleCmdMsg(m)
+      case m: AddUserToPresenterGroupCmdMsg => usersApp.handleAddUserToPresenterGroupCmdMsg(m)
+      case m: RemoveUserFromPresenterGroupCmdMsg =>
+        usersApp.handleRemoveUserFromPresenterGroupCmdMsg(m)
 
       // Whiteboard
       case m: SendCursorPositionPubMsg       => wbApp.handle(m, liveMeeting, msgBus)
@@ -265,13 +268,14 @@ class MeetingActor(
       case m: UserMutedInVoiceConfEvtMsg => handleUserMutedInVoiceConfEvtMsg(m)
       case m: UserTalkingInVoiceConfEvtMsg => handleUserTalkingInVoiceConfEvtMsg(m)
       case m: RecordingStartedVoiceConfEvtMsg => handleRecordingStartedVoiceConfEvtMsg(m)
-      case m: MuteUserCmdMsg => handleMuteUserCmdMsg(m)
+      case m: MuteUserCmdMsg => usersApp.handleMuteUserCmdMsg(m)
       case m: MuteAllExceptPresentersCmdMsg => handleMuteAllExceptPresentersCmdMsg(m)
       case m: EjectUserFromVoiceCmdMsg => handleEjectUserFromVoiceCmdMsg(m)
       case m: IsMeetingMutedReqMsg => handleIsMeetingMutedReqMsg(m)
       case m: MuteMeetingCmdMsg => handleMuteMeetingCmdMsg(m)
       case m: UserConnectedToGlobalAudioMsg => handleUserConnectedToGlobalAudioMsg(m)
       case m: UserDisconnectedFromGlobalAudioMsg => handleUserDisconnectedFromGlobalAudioMsg(m)
+      case m: VoiceConfRunningEvtMsg => handleVoiceConfRunningEvtMsg(m)
 
       // Layout
       case m: GetCurrentLayoutReqMsg => handleGetCurrentLayoutReqMsg(m)
@@ -284,10 +288,6 @@ class MeetingActor(
       case m: GetLockSettingsReqMsg => handleGetLockSettingsReqMsg(m)
 
       // Presentation
-      //      case m: SetCurrentPresentationPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus, state)
-      //      case m: SetCurrentPresentationPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
-      //      case m: GetPresentationInfoReqMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
-      case m: SetCurrentPagePubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: ResizeAndMovePagePubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: RemovePresentationPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: PresentationUploadTokenReqMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
@@ -295,7 +295,6 @@ class MeetingActor(
       case m: PresentationConversionUpdateSysPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: PresentationPageCountErrorSysPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: PresentationPageGeneratedSysPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
-      case m: PresentationConversionCompletedSysPubMsg => presentationApp2x.handle(m, liveMeeting, msgBus)
       case m: AssignPresenterReqMsg => handlePresenterChange(m)
 
       // Presentation Pods
@@ -304,6 +303,8 @@ class MeetingActor(
       case m: GetPresentationInfoReqMsg => state = presentationPodsApp.handle(m, state, liveMeeting, msgBus)
       case m: GetAllPresentationPodsReqMsg => state = presentationPodsApp.handle(m, state, liveMeeting, msgBus)
       case m: SetCurrentPresentationPubMsg => state = presentationPodsApp.handle(m, state, liveMeeting, msgBus)
+      case m: PresentationConversionCompletedSysPubMsg => state = presentationPodsApp.handle(m, state, liveMeeting, msgBus)
+      case m: SetCurrentPagePubMsg => state = presentationPodsApp.handle(m, state, liveMeeting, msgBus)
 
       // Caption
       case m: EditCaptionHistoryPubMsg => captionApp2x.handle(m, liveMeeting, msgBus)

@@ -52,6 +52,9 @@ package org.bigbluebutton.modules.users.services
   import org.bigbluebutton.main.model.users.events.ChangeMyRole;
   import org.bigbluebutton.main.model.users.events.StreamStartedEvent;
   import org.bigbluebutton.main.model.users.events.StreamStoppedEvent;
+  import org.bigbluebutton.main.model.users.events.UserAddedToPresenterGroupEvent;
+  import org.bigbluebutton.main.model.users.events.UserRemovedFromPresenterGroupEvent;
+  import org.bigbluebutton.modules.phone.events.AudioSelectionWindowEvent;
   import org.bigbluebutton.modules.screenshare.events.WebRTCViewStreamEvent;
   import org.bigbluebutton.modules.users.events.MeetingMutedEvent;
   
@@ -199,6 +202,12 @@ package org.bigbluebutton.modules.users.services
           break;
         case "GuestsWaitingApprovedEvtMsg":
           handleGuestsWaitingApprovedEvtMsg(message);
+          break;
+        case "UserAddedToPresenterGroupEvtMsg":
+          handleUserAddedToPresenterGroupEvtMsg(message);
+          break;
+        case "UserRemovedFromPresenterGroupEvtMsg":
+          handleUserRemovedFromPresenterGroupEvtMsg(message);
           break;
       }
     }
@@ -833,6 +842,15 @@ package org.bigbluebutton.modules.users.services
       var body: Object = msg.body as Object;
       var breakoutId: String = body.breakoutId as String;
       
+	  // Display audio join window
+	  if (LiveMeeting.inst().me.breakoutEjectFromAudio &&
+		  LiveMeeting.inst().breakoutRooms.getBreakoutRoom(breakoutId).hasUserWithId(LiveMeeting.inst().me.id) &&
+		  !LiveMeeting.inst().me.inVoiceConf
+	  ) {
+	  	  LiveMeeting.inst().me.breakoutEjectFromAudio = false;
+		  dispatcher.dispatchEvent(new AudioSelectionWindowEvent(AudioSelectionWindowEvent.SHOW_AUDIO_SELECTION));
+	  }
+	  
       switchUserFromBreakoutToMainVoiceConf(breakoutId);
       var breakoutRoom: BreakoutRoom = LiveMeeting.inst().breakoutRooms.getBreakoutRoom(breakoutId);
       LiveMeeting.inst().breakoutRooms.removeBreakoutRoom(breakoutId);
@@ -851,7 +869,17 @@ package org.bigbluebutton.modules.users.services
         dispatcher.dispatchEvent(e);
       }
     }
-    
+
+    private function handleUserAddedToPresenterGroupEvtMsg(msg: Object): void {
+      var userId: String = msg.body.userId;
+      dispatcher.dispatchEvent(new UserAddedToPresenterGroupEvent(userId));
+    }
+
+    private function handleUserRemovedFromPresenterGroupEvtMsg(msg: Object): void {
+      var userId: String = msg.body.userId;
+      dispatcher.dispatchEvent(new UserRemovedFromPresenterGroupEvent(userId));
+    }
+
     public function handleGuestPolicyChanged(msg:Object):void {
       var header: Object = msg.header as Object;
       var body: Object = msg.body as Object;
