@@ -1,7 +1,7 @@
 package org.bigbluebutton.core.apps.groupchats
 
 import org.bigbluebutton.common2.msgs.{ GroupChatAccess, GroupChatMsgFromUser, GroupChatMsgToUser, GroupChatUser }
-import org.bigbluebutton.core.domain.{ BbbSystemConst, MeetingState2x }
+import org.bigbluebutton.core.domain.MeetingState2x
 import org.bigbluebutton.core.models._
 import org.bigbluebutton.core.running.LiveMeeting
 
@@ -18,13 +18,12 @@ object GroupChatApp {
   def toGroupChatMessage(sender: GroupChatUser, msg: GroupChatMsgFromUser): GroupChatMessage = {
     val now = System.currentTimeMillis()
     val id = GroupChatFactory.genId()
-    GroupChatMessage(id, now, msg.correlationId, now, now, sender, msg.font,
-      msg.size, msg.color, msg.message)
+    GroupChatMessage(id, now, msg.correlationId, now, now, sender, msg.color, msg.message)
   }
 
   def toMessageToUser(msg: GroupChatMessage): GroupChatMsgToUser = {
     GroupChatMsgToUser(id = msg.id, timestamp = msg.timestamp, correlationId = msg.correlationId,
-      sender = msg.sender, font = msg.font, size = msg.size, color = msg.color, message = msg.message)
+      sender = msg.sender, color = msg.color, message = msg.message)
   }
 
   def addGroupChatMessage(chat: GroupChat, chats: GroupChats,
@@ -37,8 +36,8 @@ object GroupChatApp {
     Users2x.findWithIntId(users, userId) match {
       case Some(u) => Some(GroupChatUser(u.intId, u.name))
       case None =>
-        if (userId == BbbSystemConst.SYSTEM_USER) {
-          Some(GroupChatUser(BbbSystemConst.SYSTEM_USER, BbbSystemConst.SYSTEM_USER))
+        if (userId == SystemUser.ID) {
+          Some(GroupChatUser(SystemUser.ID, SystemUser.ID))
         } else {
           None
         }
@@ -46,7 +45,7 @@ object GroupChatApp {
   }
 
   def createDefaultPublicGroupChat(chatId: String, state: MeetingState2x): MeetingState2x = {
-    val createBy = GroupChatUser(BbbSystemConst.SYSTEM_USER, BbbSystemConst.SYSTEM_USER)
+    val createBy = GroupChatUser(SystemUser.ID, SystemUser.ID)
     val defaultPubGroupChat = GroupChatFactory.create(chatId, chatId,
       GroupChatAccess.PUBLIC, createBy, Vector.empty, Vector.empty)
     val groupChats = state.groupChats.add(defaultPubGroupChat)
@@ -54,7 +53,7 @@ object GroupChatApp {
   }
 
   def createTestPublicGroupChat(state: MeetingState2x): MeetingState2x = {
-    val createBy = GroupChatUser(BbbSystemConst.SYSTEM_USER, BbbSystemConst.SYSTEM_USER)
+    val createBy = GroupChatUser(SystemUser.ID, SystemUser.ID)
     val defaultPubGroupChat = GroupChatFactory.create("TEST_GROUP_CHAT", "TEST_GROUP_CHAT",
       GroupChatAccess.PUBLIC, createBy, Vector.empty, Vector.empty)
     val groupChats = state.groupChats.add(defaultPubGroupChat)
@@ -79,16 +78,16 @@ object GroupChatApp {
       }
     }
 
-    val sender = GroupChatUser(BbbSystemConst.SYSTEM_USER, BbbSystemConst.SYSTEM_USER)
+    val sender = GroupChatUser(SystemUser.ID, SystemUser.ID)
     val h1 = GroupChatMsgFromUser(correlationId = "cor1", sender = sender,
-      font = "arial", size = 12, color = "red", message = "Hello Foo!")
+      color = "red", message = "Hello Foo!")
     val h2 = GroupChatMsgFromUser(correlationId = "cor2", sender = sender,
-      font = "arial", size = 12, color = "red", message = "Hello Bar!")
+      color = "red", message = "Hello Bar!")
     val h3 = GroupChatMsgFromUser(correlationId = "cor3", sender = sender,
-      font = "arial", size = 12, color = "red", message = "Hello Baz!")
-    val state1 = addH(state, BbbSystemConst.SYSTEM_USER, liveMeeting, h1)
-    val state2 = addH(state1, BbbSystemConst.SYSTEM_USER, liveMeeting, h2)
-    val state3 = addH(state2, BbbSystemConst.SYSTEM_USER, liveMeeting, h3)
+      color = "red", message = "Hello Baz!")
+    val state1 = addH(state, SystemUser.ID, liveMeeting, h1)
+    val state2 = addH(state1, SystemUser.ID, liveMeeting, h2)
+    val state3 = addH(state2, SystemUser.ID, liveMeeting, h3)
     state3
   }
 }

@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import _ from 'lodash';
 import cx from 'classnames';
-import styles from './styles.scss';
+import { styles } from './styles.scss';
 import Button from '../button/component';
 import RecordingIndicator from './recording-indicator/component';
 import SettingsDropdownContainer from './settings-dropdown/container';
@@ -68,6 +68,37 @@ class NavBar extends Component {
     this.props.toggleUserList();
   }
 
+  componentDidUpdate(oldProps) {
+    const {
+      breakouts,
+      getBreakoutJoinURL,
+      isBreakoutRoom,
+    } = this.props;
+
+    const hadBreakouts = oldProps.breakouts.length;
+    const hasBreakouts = breakouts.length;
+
+    if (!hasBreakouts && hadBreakouts) {
+      closeBreakoutJoinConfirmation(this.props.mountModal);
+    }
+
+    breakouts.forEach((breakout) => {
+      if (!breakout.users) {
+        return;
+      }
+
+      const breakoutURL = getBreakoutJoinURL(breakout);
+
+      if (!this.state.didSendBreakoutInvite && !isBreakoutRoom) {
+        this.inviteUserToBreakout(breakout, breakoutURL);
+      }
+    });
+
+    if (!breakouts.length && this.state.didSendBreakoutInvite) {
+      this.setState({ didSendBreakoutInvite: false });
+    }
+  }
+
   inviteUserToBreakout(breakout, breakoutURL) {
     const {
       mountModal,
@@ -76,43 +107,6 @@ class NavBar extends Component {
     this.setState({ didSendBreakoutInvite: true }, () => {
       openBreakoutJoinConfirmation.call(this, breakoutURL, breakout.name, mountModal);
     });
-  }
-
-  render() {
-    const { hasUnreadMessages, beingRecorded, isExpanded, intl } = this.props;
-
-    const toggleBtnClasses = {};
-    toggleBtnClasses[styles.btn] = true;
-    toggleBtnClasses[styles.btnWithNotificationDot] = hasUnreadMessages;
-
-    return (
-      <div className={styles.navbar}>
-        <div className={styles.left}>
-          <Button
-            onClick={this.handleToggleUserList}
-            ghost
-            circle
-            hideLabel
-            label={intl.formatMessage(intlMessages.toggleUserListLabel)}
-            icon={'user'}
-            className={cx(toggleBtnClasses)}
-            aria-expanded={isExpanded}
-            aria-describedby="newMessage"
-          />
-          <div
-            id="newMessage"
-            aria-label={hasUnreadMessages ? intl.formatMessage(intlMessages.newMessages) : null}
-          />
-        </div>
-        <div className={styles.center} role="banner">
-          {this.renderPresentationTitle()}
-          <RecordingIndicator beingRecorded={beingRecorded} />
-        </div>
-        <div className={styles.right}>
-          <SettingsDropdownContainer />
-        </div>
-      </div>
-    );
   }
 
   renderPresentationTitle() {
@@ -146,37 +140,6 @@ class NavBar extends Component {
     );
   }
 
-  componentDidUpdate(oldProps) {
-    const {
-      breakouts,
-      getBreakoutJoinURL,
-      isBreakoutRoom,
-    } = this.props;
-
-    const hadBreakouts = oldProps.breakouts.length;
-    const hasBreakouts = breakouts.length;
-
-    if(!hasBreakouts && hadBreakouts) {
-      closeBreakoutJoinConfirmation(this.props.mountModal);
-    }
-
-    breakouts.forEach((breakout) => {
-      if (!breakout.users) {
-        return;
-      }
-
-      const breakoutURL = getBreakoutJoinURL(breakout);
-
-      if (!this.state.didSendBreakoutInvite && !isBreakoutRoom) {
-        this.inviteUserToBreakout(breakout, breakoutURL);
-      }
-    });
-
-    if (!breakouts.length && this.state.didSendBreakoutInvite) {
-      this.setState({ didSendBreakoutInvite: false });
-    }
-  }
-
   renderBreakoutItem(breakout) {
     const {
       getBreakoutJoinURL,
@@ -193,6 +156,43 @@ class NavBar extends Component {
         label={breakoutName}
         onClick={openBreakoutJoinConfirmation.bind(this, breakoutURL, breakoutName, mountModal)}
       />
+    );
+  }
+  render() {
+    const { hasUnreadMessages, beingRecorded, isExpanded, intl } = this.props;
+
+    const toggleBtnClasses = {};
+    toggleBtnClasses[styles.btn] = true;
+    toggleBtnClasses[styles.btnWithNotificationDot] = hasUnreadMessages;
+
+    return (
+      <div className={styles.navbar}>
+        <div className={styles.left}>
+          <Button
+            data-test="userListToggleButton"
+            onClick={this.handleToggleUserList}
+            ghost
+            circle
+            hideLabel
+            label={intl.formatMessage(intlMessages.toggleUserListLabel)}
+            icon={'user'}
+            className={cx(toggleBtnClasses)}
+            aria-expanded={isExpanded}
+            aria-describedby="newMessage"
+          />
+          <div
+            id="newMessage"
+            aria-label={hasUnreadMessages ? intl.formatMessage(intlMessages.newMessages) : null}
+          />
+        </div>
+        <div className={styles.center} role="banner">
+          {this.renderPresentationTitle()}
+          <RecordingIndicator beingRecorded={beingRecorded} />
+        </div>
+        <div className={styles.right}>
+          <SettingsDropdownContainer />
+        </div>
+      </div>
     );
   }
 }

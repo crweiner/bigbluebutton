@@ -1,11 +1,11 @@
 package org.bigbluebutton.core.apps.users
 
 import org.bigbluebutton.common2.msgs._
-import org.bigbluebutton.core.domain.{ MeetingExpiryTracker, MeetingState2x }
-import org.bigbluebutton.core.models.{ Users2x, VoiceUserState, VoiceUsers }
-import org.bigbluebutton.core.running.{ LiveMeeting, MeetingActor, OutMsgRouter }
+import org.bigbluebutton.core.apps.presentationpod.PresentationPodsApp
+import org.bigbluebutton.core.domain.MeetingState2x
+import org.bigbluebutton.core.models.Users2x
+import org.bigbluebutton.core.running.{ MeetingActor, OutMsgRouter }
 import org.bigbluebutton.core.util.TimeUtil
-import org.bigbluebutton.core2.MeetingStatus2x
 import org.bigbluebutton.core2.message.senders.MsgBuilder
 
 trait UserLeaveReqMsgHdlr {
@@ -14,6 +14,22 @@ trait UserLeaveReqMsgHdlr {
   val outGW: OutMsgRouter
 
   def handleUserLeaveReqMsg(msg: UserLeaveReqMsg, state: MeetingState2x): MeetingState2x = {
+
+    def broadcastSetPresenterInPodRespMsg(podId: String, nextPresenterId: String, requesterId: String): Unit = {
+      val routing = Routing.addMsgToClientRouting(
+        MessageTypes.BROADCAST_TO_MEETING,
+        liveMeeting.props.meetingProp.intId, requesterId
+      )
+      val envelope = BbbCoreEnvelope(SetPresenterInPodRespMsg.NAME, routing)
+      val header = BbbClientMsgHeader(SetPresenterInPodRespMsg.NAME, liveMeeting.props.meetingProp.intId, requesterId)
+
+      val body = SetPresenterInPodRespMsgBody(podId, nextPresenterId)
+      val event = SetPresenterInPodRespMsg(header, body)
+      val msgEvent = BbbCommonEnvCoreMsg(envelope, event)
+      outGW.send(msgEvent)
+    }
+
+    var newState = state
     for {
       u <- Users2x.remove(liveMeeting.users2x, msg.body.userId)
     } yield {
@@ -30,7 +46,7 @@ trait UserLeaveReqMsgHdlr {
       outGW.send(userLeftMeetingEvent)
 
       if (u.presenter) {
-        automaticallyAssignPresenter(outGW, liveMeeting)
+        UsersApp.automaticallyAssignPresenter(outGW, liveMeeting)
 
         // request screenshare to end
         screenshareApp2x.handleScreenshareStoppedVoiceConfEvtMsg(
@@ -40,27 +56,28 @@ trait UserLeaveReqMsgHdlr {
         )
 
         // request ongoing poll to end
-        pollApp.stopPoll(u.intId, liveMeeting, msgBus)
+        pollApp.stopPoll(state, u.intId, liveMeeting, msgBus)
       }
 
-      def broadcastEvent(vu: VoiceUserState): Unit = {
-        val routing = Routing.addMsgToClientRouting(MessageTypes.BROADCAST_TO_MEETING, liveMeeting.props.meetingProp.intId,
-          vu.intId)
-        val envelope = BbbCoreEnvelope(UserLeftVoiceConfToClientEvtMsg.NAME, routing)
-        val header = BbbClientMsgHeader(UserLeftVoiceConfToClientEvtMsg.NAME, liveMeeting.props.meetingProp.intId, vu.intId)
+      if (Users2x.userIsInPresenterGroup(liveMeeting.users2x, u.intId)) {
+        Users2x.removeUserFromPresenterGroup(liveMeeting.users2x, u.intId)
+        outGW.send(buildRemoveUserFromPresenterGroup(liveMeeting.props.meetingProp.intId, u.intId, u.intId))
 
-        val body = UserLeftVoiceConfToClientEvtMsgBody(voiceConf = liveMeeting.props.voiceProp.voiceConf, intId = vu.intId, voiceUserId = vu.voiceUserId)
+        val pods = PresentationPodsApp.findPodsWhereUserIsPresenter(state.presentationPodManager, u.intId)
+        if (pods.length > 0) {
+          val presenters = Users2x.getPresenterGroupUsers(liveMeeting.users2x)
+          var newPresenter = ""
+          if (presenters.length > 0) {
+            newPresenter = presenters.head
+          }
 
-        val event = UserLeftVoiceConfToClientEvtMsg(header, body)
-        val msgEvent = BbbCommonEnvCoreMsg(envelope, event)
-        outGW.send(msgEvent)
-      }
-
-      for {
-        user <- VoiceUsers.findWithIntId(liveMeeting.voiceUsers, msg.body.userId)
-      } yield {
-        VoiceUsers.removeWithIntId(liveMeeting.voiceUsers, user.intId)
-        broadcastEvent(user)
+          pods foreach { pod =>
+            val updatedPod = pod.setCurrentPresenter(newPresenter)
+            broadcastSetPresenterInPodRespMsg(pod.id, newPresenter, "system")
+            val newpods = state.presentationPodManager.addPod(updatedPod)
+            newState = state.update(newpods)
+          }
+        }
       }
     }
 
@@ -70,9 +87,9 @@ trait UserLeaveReqMsgHdlr {
 
     if (Users2x.numUsers(liveMeeting.users2x) == 0) {
       val tracker = state.expiryTracker.setLastUserLeftOn(TimeUtil.timeNowInMs())
-      state.update(tracker)
+      newState.update(tracker)
     } else {
-      state
+      newState
     }
   }
 

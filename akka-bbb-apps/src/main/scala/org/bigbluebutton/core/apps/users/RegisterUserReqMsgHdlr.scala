@@ -23,11 +23,7 @@ trait RegisterUserReqMsgHdlr {
     }
 
     val guestPolicy = liveMeeting.guestsWaiting.getGuestPolicy().policy
-    val guestStatus = GuestStatus.determineGuestStatus(
-      msg.body.guest,
-      guestPolicy,
-      msg.body.authed
-    )
+    val guestStatus = msg.body.guestStatus
 
     println("****** GUEST POLICY = " + guestPolicy + " guestStatus = " + guestStatus)
 
@@ -57,13 +53,15 @@ trait RegisterUserReqMsgHdlr {
 
     guestStatus match {
       case GuestStatus.ALLOW =>
-      // do nothing. Let the user go through.
+        val g = GuestApprovedVO(regUser.id, GuestStatus.ALLOW)
+        UsersApp.approveOrRejectGuest(liveMeeting, outGW, g, SystemUser.ID)
       case GuestStatus.WAIT =>
-        val guest = GuestWaiting(regUser.id, regUser.name, regUser.role)
+        val guest = GuestWaiting(regUser.id, regUser.name, regUser.role, regUser.guest, regUser.authed)
         addGuestToWaitingForApproval(guest, liveMeeting.guestsWaiting)
         notifyModeratorsOfGuestWaiting(Vector(guest), liveMeeting.users2x, liveMeeting.props.meetingProp.intId)
       case GuestStatus.DENY =>
-        log.info("**** TODO: Handle DENY Guest Status")
+        val g = GuestApprovedVO(regUser.id, GuestStatus.DENY)
+        UsersApp.approveOrRejectGuest(liveMeeting, outGW, g, SystemUser.ID)
     }
 
   }

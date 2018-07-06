@@ -64,17 +64,13 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			import org.bigbluebutton.util.browser.BrowserCheck;
 			import org.bigbluebutton.util.i18n.ResourceUtil;
 			
-			
-      
-      
-
 			private static const LOGGER:ILogger = getClassLogger(ToolbarPopupButton);      
 
-			public const OFF_STATE:Number = 0;
-			public const ON_STATE:Number = 1;
+			public static const OFF_STATE:Number = 0;
+			public static const ON_STATE:Number = 1;
 			
-			public const STOP_PUBLISHING:Number = 0;
-			public const START_PUBLISHING:Number = 1;
+			public static const STOP_PUBLISHING:Number = 0;
+			public static const START_PUBLISHING:Number = 1;
 
 			[Bindable]
 			private var _currentState:Number = OFF_STATE;
@@ -153,7 +149,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 			public function remoteClick(e:ShortcutEvent):void{
 				openPublishWindow();
-				dispatchEvent(new ShortcutEvent(ShortcutEvent.REMOTE_FOCUS_WEBCAM));
 			}
 			
 			public function publishingStatus(status:Number, camID:Number = -1):void {
@@ -181,10 +176,19 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				dataMenu.dataProvider = dp;
 			}
 
+			private function browserForcesHTTPS() : Boolean {
+				var result : Boolean = !BrowserCheck.isHttps() && ((BrowserCheck.isChrome() && BrowserCheck.browserMajorVersion >= "60") || (BrowserCheck.isOpera() && BrowserCheck.browserMajorVersion >= "47"));
+				if (result) {
+					Alert.show(ResourceUtil.getInstance().getString("bbb.video.message.browserhttp", [BrowserCheck.browserName]));
+				}
+				return result;
+			}
 
 			private function openPublishWindow():void{
-				if (!BrowserCheck.isHttps() && ((BrowserCheck.isChrome() && BrowserCheck.browserMajorVersion >= "60") || (BrowserCheck.isOpera() && BrowserCheck.browserMajorVersion >= "47"))) {
-					Alert.show(ResourceUtil.getInstance().getString("bbb.video.message.browserhttp", [BrowserCheck.browserName]));
+				if (LiveMeeting.inst().me.disableMyCam) {
+					return;
+				}
+				if (browserForcesHTTPS()) {
 					return;
 				}
 				this.enabled = false;
@@ -256,6 +260,9 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 					dispatchEvent(stopShareCameraRequestEvent);
 				}
 				else {
+					if (browserForcesHTTPS()) {
+						return;
+					}
 					this.enabled = false;
 					if(numberOfCamerasOff > 0)
 						numberOfCamerasOff--;

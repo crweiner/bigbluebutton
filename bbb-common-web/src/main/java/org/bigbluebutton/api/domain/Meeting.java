@@ -27,6 +27,9 @@ import org.apache.commons.lang3.RandomStringUtils;
 
 public class Meeting {
 
+	public static final String ROLE_MODERATOR = "MODERATOR";
+	public static final String ROLE_ATTENDEE = "VIEWER";
+
 	private String name;
 	private String extMeetingId;
 	private String intMeetingId;
@@ -65,6 +68,9 @@ public class Meeting {
 	private final ConcurrentMap<String, Config> configs;
 	private final Boolean isBreakout;
 	private final List<String> breakoutRooms = new ArrayList<String>();
+	private String customLogoURL = "";
+	private String customCopyright = "";
+	private Boolean muteOnStart = false;
 
 	private Integer maxInactivityTimeoutMinutes = 120;
 	private Integer warnMinutesBeforeMax = 5;
@@ -201,8 +207,8 @@ public class Meeting {
 		return createdTime;
 	}
 
-	public Integer setSequence(Integer s) {
-        return sequence = s;
+	public void setSequence(Integer s) {
+        sequence = s;
     }
 
 	public Integer getSequence() {
@@ -257,8 +263,8 @@ public class Meeting {
 		return intMeetingId;
 	}
 
-	public String setParentMeetingId(String p) {
-        return parentMeetingId = p;
+	public void setParentMeetingId(String p) {
+        parentMeetingId = p;
     }
 
 	public String getParentMeetingId() {
@@ -293,10 +299,36 @@ public class Meeting {
 		return defaultAvatarURL;
 	}
 
+	public void setGuestPolicy(String policy) {
+		guestPolicy = policy;
+	}
+
 	public String getGuestPolicy() {
     	return guestPolicy;
 	}
-	
+
+
+	public String calcGuestStatus(String role, Boolean guest, Boolean authned) {
+		if (GuestPolicy.ALWAYS_ACCEPT.equals(guestPolicy)) {
+    	return GuestPolicy.ALLOW;
+		} else if (GuestPolicy.ALWAYS_DENY.equals(guestPolicy)) {
+    	return GuestPolicy.DENY;
+		} else if (GuestPolicy.ASK_MODERATOR.equals(guestPolicy)) {
+			if (guest || authned) {
+				return GuestPolicy.WAIT ;
+			}
+			return GuestPolicy.ALLOW;
+		} else if (GuestPolicy.ALWAYS_ACCEPT_AUTH.equals(guestPolicy)) {
+			if (guest){
+				// Only ask moderator for guests.
+				return GuestPolicy.WAIT ;
+			}
+			return GuestPolicy.ALLOW;
+		}
+		return GuestPolicy.DENY ;
+	}
+
+
 	public String getLogoutUrl() {
 		return logoutUrl;
 	}
@@ -336,7 +368,31 @@ public class Meeting {
 	public boolean hasUserJoined() {
 		return userHasJoined;
 	}
-	
+
+	public String getCustomLogoURL() {
+		return customLogoURL;
+	}
+
+	public void setCustomLogoURL(String url) {
+		customLogoURL = url;
+	}
+
+	public void setCustomCopyright(String copyright) {
+    	customCopyright = copyright;
+	}
+
+	public String getCustomCopyright() {
+    	return customCopyright;
+	}
+
+	public void setMuteOnStart(Boolean mute) {
+    	muteOnStart = mute;
+	}
+
+	public Boolean getMuteOnStart() {
+    	return muteOnStart;
+	}
+
 	public void userJoined(User user) {
 	    userHasJoined = true;
 	    this.users.put(user.getInternalUserId(), user);
@@ -350,7 +406,17 @@ public class Meeting {
 	public User getUserById(String id){
 		return this.users.get(id);
 	}
-	
+
+	public User getUserWithExternalId(String externalUserId) {
+		for (String key : users.keySet()) {
+			User u =  (User) users.get(key);
+			if (u.getExternalUserId().equals(externalUserId)) {
+				return u;
+			}
+		}
+		return null;
+	}
+
 	public int getNumUsers(){
 		return this.users.size();
 	}

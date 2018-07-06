@@ -1,6 +1,7 @@
 package org.bigbluebutton.core.models
 
 import com.softwaremill.quicklens._
+import org.bigbluebutton.core.util.TimeUtil
 
 object Users2x {
   def findWithIntId(users: Users2x, intId: String): Option[UserState] = {
@@ -26,14 +27,16 @@ object Users2x {
     users.toVector.filter(u => !u.presenter)
   }
 
-  def changeRole(users: Users2x, intId: String, newRole: String): Option[UserState] = {
-    for {
-      u <- findWithIntId(users, intId)
-    } yield {
-      val newUserState = modify(u)(_.role).setTo(newRole)
-      users.save(newUserState)
-      newUserState
-    }
+  def updateInactivityResponse(users: Users2x, u: UserState): UserState = {
+    val newUserState = modify(u)(_.inactivityResponseOn).setTo(TimeUtil.timeNowInMs())
+    users.save(newUserState)
+    newUserState
+  }
+
+  def changeRole(users: Users2x, u: UserState, newRole: String): UserState = {
+    val newUserState = modify(u)(_.role).setTo(newRole).modify(_.roleChangedOn).setTo(System.currentTimeMillis())
+    users.save(newUserState)
+    newUserState
   }
 
   def ejectFromMeeting(users: Users2x, intId: String): Option[UserState] = {
@@ -131,6 +134,8 @@ class Users2x {
   private var users: collection.immutable.HashMap[String, UserState] = new collection.immutable.HashMap[String, UserState]
   private var presenterGroup: Vector[String] = scala.collection.immutable.Vector.empty
 
+  private var oldPresenterGroup: collection.immutable.HashMap[String, OldPresenter] = new collection.immutable.HashMap[String, OldPresenter]
+
   // Collection of users that left the meeting. We keep a cache of the old users state to recover in case
   // the user reconnected by refreshing the client. (ralam june 13, 2017)
   private var usersCache: collection.immutable.HashMap[String, UserState] = new collection.immutable.HashMap[String, UserState]
@@ -173,11 +178,42 @@ class Users2x {
     presenterGroup = updatedGroup
   }
 
+  def addOldPresenter(userId: String): OldPresenter = {
+    val op = OldPresenter(userId, System.currentTimeMillis())
+    oldPresenterGroup += op.userId -> op
+    op
+  }
+
+  def removeOldPresenter(userId: String): Option[OldPresenter] = {
+    for {
+      op <- oldPresenterGroup.get(userId)
+    } yield {
+      oldPresenterGroup -= userId
+      op
+    }
+  }
+
+  def findOldPresenter(userId: String): Option[OldPresenter] = {
+    oldPresenterGroup.get(userId)
+  }
+
+  def purgeOldPresenters(): Unit = {
+    val now = System.currentTimeMillis()
+    oldPresenterGroup.values.foreach { op =>
+      if (now - op.changedPresenterOn < 5000) {
+        oldPresenterGroup -= op.userId
+      }
+    }
+  }
 }
+
+case class OldPresenter(userId: String, changedPresenterOn: Long)
 
 case class UserState(intId: String, extId: String, name: String, role: String,
                      guest: Boolean, authed: Boolean, guestStatus: String, emoji: String, locked: Boolean,
-                     presenter: Boolean, avatar: String)
+                     presenter: Boolean, avatar: String,
+                     roleChangedOn:        Long = System.currentTimeMillis(),
+                     inactivityResponseOn: Long = TimeUtil.timeNowInMs())
 
 case class UserIdAndName(id: String, name: String)
 
@@ -193,4 +229,17 @@ object Roles {
   val VIEWER_ROLE = "VIEWER"
   val GUEST_ROLE = "GUEST"
   val AUTHENTICATED_ROLE = "AUTHENTICATED"
+}
+
+object SystemUser {
+  val ID = "SYSTEM"
+}
+
+object EjectReasonCode {
+  val DUPLICATE_USER = "duplicate_user_in_meeting_eject_reason"
+  val PERMISSION_FAILED = "not_enough_permission_eject_reason"
+  val EJECT_USER = "user_requested_eject_reason"
+  val SYSTEM_EJECT_USER = "system_requested_eject_reason"
+  val VALIDATE_TOKEN = "validate_token_failed_eject_reason"
+  val USER_INACTIVITY = "user_inactivity_eject_reason"
 }

@@ -21,8 +21,8 @@ trait SystemConfiguration {
   lazy val red5DeskShareIP = Try(config.getString("red5.deskshareip")).getOrElse("127.0.0.1")
   lazy val red5DeskShareApp = Try(config.getString("red5.deskshareapp")).getOrElse("")
 
-  lazy val inactivityDeadline = Try(config.getInt("inactivity.deadline")).getOrElse(2 * 3600) // 2 hours
-  lazy val inactivityTimeLeft = Try(config.getInt("inactivity.timeLeft")).getOrElse(5 * 60) // 5 minutes
+  lazy val userInactivityAuditTimer = Try(config.getInt("inactivityAudit.timer")).getOrElse(120) // 2 hours
+  lazy val userInactivityAuditResponseDuration = Try(config.getInt("inactivityAudit.responseDuration")).getOrElse(5) // 5 minutes
 
   lazy val expireLastUserLeft = Try(config.getInt("expire.lastUserLeft")).getOrElse(60) // 1 minute
   lazy val expireNeverJoined = Try(config.getInt("expire.neverJoined")).getOrElse(5 * 60) // 5 minutes
@@ -43,7 +43,6 @@ trait SystemConfiguration {
   lazy val toClientChannel = Try(config.getString("eventBus.toClientChannel")).getOrElse("to-client-channel")
   lazy val toAkkaAppsJsonChannel = Try(config.getString("eventBus.toAkkaAppsChannel")).getOrElse("to-akka-apps-json-channel")
   lazy val fromAkkaAppsJsonChannel = Try(config.getString("eventBus.fromAkkaAppsChannel")).getOrElse("from-akka-apps-json-channel")
-  lazy val fromAkkaAppsOldJsonChannel = Try(config.getString("eventBus.fromAkkaAppsOldChannel")).getOrElse("from-akka-apps-old-json-channel")
 
   lazy val toVoiceConfRedisChannel = Try(config.getString("redis.toVoiceConfRedisChannel")).getOrElse("to-voice-conf-redis-channel")
   lazy val fromVoiceConfRedisChannel = Try(config.getString("redis.fromVoiceConfRedisChannel")).getOrElse("from-voice-conf-redis-channel")
@@ -61,4 +60,7 @@ trait SystemConfiguration {
   lazy val telizePort = Try(config.getInt("services.telizePort")).getOrElse(80)
 
   lazy val applyPermissionCheck = Try(config.getBoolean("apps.checkPermissions")).getOrElse(false)
+
+  lazy val voiceConfRecordPath = Try(config.getString("voiceConf.recordPath")).getOrElse("/var/freeswitch/meetings")
+  lazy val recordingChapterBreakLenghtInMinutes = Try(config.getInt("recording.chapterBreakLengthInMinutes")).getOrElse(180)
 }

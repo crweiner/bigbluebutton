@@ -6,15 +6,11 @@ import org.bigbluebutton.common2.domain.{PresentationPodVO, PresentationVO}
 // ------------ client to akka-apps ------------
 object CreateNewPresentationPodPubMsg { val NAME = "CreateNewPresentationPodPubMsg"}
 case class CreateNewPresentationPodPubMsg(header: BbbClientMsgHeader, body: CreateNewPresentationPodPubMsgBody) extends StandardMsg
-case class CreateNewPresentationPodPubMsgBody(ownerId: String)
+case class CreateNewPresentationPodPubMsgBody()
 
 object RemovePresentationPodPubMsg { val NAME = "RemovePresentationPodPubMsg"}
 case class RemovePresentationPodPubMsg(header: BbbClientMsgHeader, body: RemovePresentationPodPubMsgBody) extends StandardMsg
-case class RemovePresentationPodPubMsgBody(requesterId: String, podId: String)
-
-object GetPresentationInfoReqMsg { val NAME = "GetPresentationInfoReqMsg"}
-case class GetPresentationInfoReqMsg(header: BbbClientMsgHeader, body: GetPresentationInfoReqMsgBody) extends StandardMsg
-case class GetPresentationInfoReqMsgBody(userId: String, podId: String)
+case class RemovePresentationPodPubMsgBody(podId: String)
 
 object PresentationUploadTokenReqMsg { val NAME = "PresentationUploadTokenReqMsg"}
 case class PresentationUploadTokenReqMsg(header: BbbClientMsgHeader, body: PresentationUploadTokenReqMsgBody) extends StandardMsg
@@ -22,12 +18,33 @@ case class PresentationUploadTokenReqMsgBody(podId: String, filename: String)
 
 object GetAllPresentationPodsReqMsg { val NAME = "GetAllPresentationPodsReqMsg"}
 case class GetAllPresentationPodsReqMsg(header: BbbClientMsgHeader, body: GetAllPresentationPodsReqMsgBody) extends StandardMsg
-case class GetAllPresentationPodsReqMsgBody(requesterId: String)
+case class GetAllPresentationPodsReqMsgBody()
 
 object SetCurrentPagePubMsg { val NAME = "SetCurrentPagePubMsg"}
 case class SetCurrentPagePubMsg(header: BbbClientMsgHeader, body: SetCurrentPagePubMsgBody) extends StandardMsg
 case class SetCurrentPagePubMsgBody(podId: String, presentationId: String, pageId: String)
 
+object SetPresenterInPodReqMsg { val NAME = "SetPresenterInPodReqMsg"}
+case class SetPresenterInPodReqMsg(header: BbbClientMsgHeader, body: SetPresenterInPodReqMsgBody) extends StandardMsg
+case class SetPresenterInPodReqMsgBody(podId: String, nextPresenterId: String)
+
+object RemovePresentationPubMsg { val NAME = "RemovePresentationPubMsg"}
+case class RemovePresentationPubMsg(header: BbbClientMsgHeader, body: RemovePresentationPubMsgBody) extends StandardMsg
+case class RemovePresentationPubMsgBody(podId: String, presentationId: String)
+
+object SetPresentationDownloadablePubMsg { val NAME = "SetPresentationDownloadablePubMsg"}
+case class SetPresentationDownloadablePubMsg(header: BbbClientMsgHeader, body: SetPresentationDownloadablePubMsgBody) extends StandardMsg
+case class SetPresentationDownloadablePubMsgBody(podId: String, presentationId: String, downloadable:Boolean)
+
+
+object ResizeAndMovePagePubMsg { val NAME = "ResizeAndMovePagePubMsg"}
+case class ResizeAndMovePagePubMsg(header: BbbClientMsgHeader, body: ResizeAndMovePagePubMsgBody) extends StandardMsg
+case class ResizeAndMovePagePubMsgBody(podId: String, presentationId: String, pageId: String, xOffset: Double,
+                                       yOffset: Double, widthRatio: Double, heightRatio: Double)
+
+object SetCurrentPresentationPubMsg { val NAME = "SetCurrentPresentationPubMsg"}
+case class SetCurrentPresentationPubMsg(header: BbbClientMsgHeader, body: SetCurrentPresentationPubMsgBody) extends StandardMsg
+case class SetCurrentPresentationPubMsgBody(podId: String, presentationId: String)
 // ------------ client to akka-apps ------------
 
 
@@ -64,15 +81,11 @@ case class PresentationConversionCompletedSysPubMsgBody(podId: String, messageKe
 // ------------ akka-apps to client ------------
 object CreateNewPresentationPodEvtMsg { val NAME = "CreateNewPresentationPodEvtMsg"}
 case class CreateNewPresentationPodEvtMsg(header: BbbClientMsgHeader, body: CreateNewPresentationPodEvtMsgBody) extends StandardMsg
-case class CreateNewPresentationPodEvtMsgBody(ownerId: String, podId: String)
+case class CreateNewPresentationPodEvtMsgBody(currentPresenterId: String, podId: String)
 
 object RemovePresentationPodEvtMsg { val NAME = "RemovePresentationPodEvtMsg"}
 case class RemovePresentationPodEvtMsg(header: BbbClientMsgHeader, body: RemovePresentationPodEvtMsgBody) extends StandardMsg
-case class RemovePresentationPodEvtMsgBody( ownerId: String, podId: String)
-
-object GetPresentationInfoRespMsg { val NAME = "GetPresentationInfoRespMsg"}
-case class GetPresentationInfoRespMsg(header: BbbClientMsgHeader, body: GetPresentationInfoRespMsgBody) extends BbbCoreMsg
-case class GetPresentationInfoRespMsgBody(podId: String, presentations: Vector[PresentationVO])
+case class RemovePresentationPodEvtMsgBody(podId: String)
 
 object PresentationUploadTokenPassRespMsg { val NAME = "PresentationUploadTokenPassRespMsg"}
 case class PresentationUploadTokenPassRespMsg(header: BbbClientMsgHeader, body: PresentationUploadTokenPassRespMsgBody) extends StandardMsg
@@ -105,6 +118,32 @@ case class GetAllPresentationPodsRespMsgBody(pods: Vector[PresentationPodVO])
 object SetCurrentPageEvtMsg { val NAME = "SetCurrentPageEvtMsg"}
 case class SetCurrentPageEvtMsg(header: BbbClientMsgHeader, body: SetCurrentPageEvtMsgBody) extends BbbCoreMsg
 case class SetCurrentPageEvtMsgBody(podId: String, presentationId: String, pageId: String)
+
+object SetPresenterInPodRespMsg { val NAME = "SetPresenterInPodRespMsg"}
+case class SetPresenterInPodRespMsg(header: BbbClientMsgHeader, body: SetPresenterInPodRespMsgBody) extends StandardMsg
+case class SetPresenterInPodRespMsgBody(podId: String, nextPresenterId: String)
+
+object RemovePresentationEvtMsg { val NAME = "RemovePresentationEvtMsg"}
+case class RemovePresentationEvtMsg(header: BbbClientMsgHeader, body: RemovePresentationEvtMsgBody) extends BbbCoreMsg
+case class RemovePresentationEvtMsgBody(podId: String, presentationId: String)
+
+object SetPresentationDownloadableEvtMsg { val NAME = "SetPresentationDownloadableEvtMsg"}
+case class SetPresentationDownloadableEvtMsg(header: BbbClientMsgHeader, body: SetPresentationDownloadableEvtMsgBody) extends BbbCoreMsg
+case class SetPresentationDownloadableEvtMsgBody(podId: String, presentationId: String, downloadable: Boolean, presFilename: String)
+
+object ResizeAndMovePageEvtMsg { val NAME = "ResizeAndMovePageEvtMsg"}
+case class ResizeAndMovePageEvtMsg(header: BbbClientMsgHeader, body: ResizeAndMovePageEvtMsgBody) extends BbbCoreMsg
+case class ResizeAndMovePageEvtMsgBody(podId: String, presentationId: String, pageId: String, xOffset: Double,
+                                       yOffset: Double, widthRatio: Double, heightRatio: Double)
+
+object SetCurrentPresentationEvtMsg { val NAME = "SetCurrentPresentationEvtMsg"}
+case class SetCurrentPresentationEvtMsg(header: BbbClientMsgHeader, body: SetCurrentPresentationEvtMsgBody) extends BbbCoreMsg
+case class SetCurrentPresentationEvtMsgBody(podId: String, presentationId: String)
+
+// html5 client only
+object SyncGetPresentationPodsRespMsg { val NAME = "SyncGetPresentationPodsRespMsg"}
+case class SyncGetPresentationPodsRespMsg(header: BbbClientMsgHeader, body: SyncGetPresentationPodsRespMsgBody) extends BbbCoreMsg
+case class SyncGetPresentationPodsRespMsgBody(pods: Vector[PresentationPodVO])
 
 // ------------ akka-apps to client ------------
 

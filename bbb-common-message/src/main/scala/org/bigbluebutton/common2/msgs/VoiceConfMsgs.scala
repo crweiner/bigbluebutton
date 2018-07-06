@@ -112,15 +112,15 @@ case class EjectUserFromVoiceCmdMsgBody(userId: String, ejectedBy: String)
 object MuteAllExceptPresentersCmdMsg { val NAME = "MuteAllExceptPresentersCmdMsg"}
 case class MuteAllExceptPresentersCmdMsg(header: BbbClientMsgHeader,
                           body: MuteAllExceptPresentersCmdMsgBody) extends StandardMsg
-case class MuteAllExceptPresentersCmdMsgBody(mutedBy: String)
+case class MuteAllExceptPresentersCmdMsgBody(mutedBy: String, mute: Boolean)
 
 /**
-  * Sent by client to mute all users except presenters in the voice conference.
+  * Sent by client to determine current meeting mute state.
   */
 object IsMeetingMutedReqMsg { val NAME = "IsMeetingMutedReqMsg"}
 case class IsMeetingMutedReqMsg(header: BbbClientMsgHeader,
                                          body: IsMeetingMutedReqMsgBody) extends StandardMsg
-case class IsMeetingMutedReqMsgBody(requesterId: String)
+case class IsMeetingMutedReqMsgBody()
 
 object IsMeetingMutedRespMsg { val NAME = "IsMeetingMutedRespMsg"}
 case class IsMeetingMutedRespMsg(header: BbbClientMsgHeader,
@@ -133,7 +133,7 @@ case class IsMeetingMutedRespMsgBody(muted: Boolean)
 object MuteUserCmdMsg { val NAME = "MuteUserCmdMsg"}
 case class MuteUserCmdMsg(header: BbbClientMsgHeader,
                                     body: MuteUserCmdMsgBody) extends StandardMsg
-case class MuteUserCmdMsgBody(userId: String, mutedBy: String)
+case class MuteUserCmdMsgBody(userId: String, mutedBy: String, mute: Boolean)
 
 /**
   * Sent to FS to get the users in the voice conference.
@@ -165,7 +165,7 @@ case class GetUsersInVoiceConfSysMsgBody(voiceConf: String)
 object MuteMeetingCmdMsg { val NAME = "MuteMeetingCmdMsg" }
 case class MuteMeetingCmdMsg(header: BbbClientMsgHeader,
                                   body: MuteMeetingCmdMsgBody) extends StandardMsg
-case class MuteMeetingCmdMsgBody(mutedBy: String)
+case class MuteMeetingCmdMsgBody(mutedBy: String, mute: Boolean)
 
 /**
   * Send to all clients that meeting is muted.
@@ -191,7 +191,7 @@ case class MeetingMutedEvtMsgBody(muted: Boolean, mutedBy: String)
   object StartRecordingVoiceConfSysMsg { val NAME = "StartRecordingVoiceConfSysMsg" }
   case class StartRecordingVoiceConfSysMsg(header: BbbCoreHeaderWithMeetingId,
                                         body: StartRecordingVoiceConfSysMsgBody) extends BbbCoreMsg
-  case class StartRecordingVoiceConfSysMsgBody(voiceConf: String, meetingId: String)
+  case class StartRecordingVoiceConfSysMsgBody(voiceConf: String, meetingId: String, stream: String)
 
 /**
   * Sent to FS to stop recording voice conference.

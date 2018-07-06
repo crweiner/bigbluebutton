@@ -17,15 +17,24 @@ trait ValidateAuthTokenReqMsgHdlr extends HandlerHelpers {
   def handleValidateAuthTokenReqMsg(msg: ValidateAuthTokenReqMsg, state: MeetingState2x): MeetingState2x = {
     log.debug("RECEIVED ValidateAuthTokenReqMsg msg {}", msg)
 
-    val regUser = RegisteredUsers.getRegisteredUserWithToken(msg.body.authToken, msg.body.userId, liveMeeting.registeredUsers)
+    val regUser = RegisteredUsers.getRegisteredUserWithToken(msg.body.authToken, msg.body.userId,
+      liveMeeting.registeredUsers)
 
     regUser match {
       case Some(u) =>
-        userValidated(u, state)
+        if (u.guestStatus == GuestStatus.ALLOW) {
+          userValidated(u, state)
+        } else {
+          validateTokenFailed(outGW, meetingId = liveMeeting.props.meetingProp.intId,
+            userId = msg.header.userId, authToken = msg.body.authToken,
+            valid = false, waitForApproval = false, state)
+        }
+
       case None =>
         validateTokenFailed(outGW, meetingId = liveMeeting.props.meetingProp.intId,
-          userId = msg.body.userId, authToken = msg.body.authToken,
+          userId = msg.header.userId, authToken = msg.body.authToken,
           valid = false, waitForApproval = false, state)
+
     }
   }
 
@@ -34,7 +43,7 @@ trait ValidateAuthTokenReqMsgHdlr extends HandlerHelpers {
     val event = MsgBuilder.buildValidateAuthTokenRespMsg(meetingId, userId, authToken, valid, waitForApproval)
     outGW.send(event)
 
-    // TODO: Should disconnect user here.
+    UsersApp.ejectUserFromMeeting(outGW, liveMeeting, userId, SystemUser.ID, "Invalid auth token.", EjectReasonCode.VALIDATE_TOKEN)
 
     state
   }

@@ -32,8 +32,8 @@ package org.bigbluebutton.modules.users.services
   import org.bigbluebutton.core.connection.messages.breakoutrooms.CreateBreakoutRoomsMsgBody;
   import org.bigbluebutton.core.connection.messages.breakoutrooms.EndAllBreakoutRoomsMsg;
   import org.bigbluebutton.core.connection.messages.breakoutrooms.EndAllBreakoutRoomsMsgBody;
-  import org.bigbluebutton.core.connection.messages.breakoutrooms.RequestBreakoutJoinURLReqMsg;
   import org.bigbluebutton.core.connection.messages.breakoutrooms.RequestBreakoutJoinURLReqBody;
+  import org.bigbluebutton.core.connection.messages.breakoutrooms.RequestBreakoutJoinURLReqMsg;
   import org.bigbluebutton.core.managers.ConnectionManager;
   import org.bigbluebutton.core.model.LiveMeeting;
   import org.bigbluebutton.core.model.users.GuestWaiting;
@@ -59,7 +59,26 @@ package org.bigbluebutton.modules.users.services
         }, JSON.stringify(message)
       );
     }
-    
+
+    public function queryForGuestsWaiting():void {
+      var message:Object = {
+        header: {name: "GetGuestsWaitingApprovalReqMsg", meetingId: UsersUtil.getInternalMeetingID(), userId: UsersUtil.getMyUserID()},
+        body: {requesterId: UsersUtil.getMyUserID()}
+      };
+
+      var _nc:ConnectionManager = BBB.initConnectionManager();
+      _nc.sendMessage2x( 
+        function(result:String):void { // On successful result
+        },
+        function(status:String):void { // status - On error occurred
+            var logData:Object = UsersUtil.initLogData();
+            logData.tags = ["apps"];
+            logData.message = "Error occurred querying guests waiting.";
+            LOGGER.info(JSON.stringify(logData));
+        }, JSON.stringify(message)
+      );
+    }
+
     public function joinMeeting(): void {
       LOGGER.info("Sending JOIN MEETING message");
       
@@ -302,6 +321,27 @@ package org.bigbluebutton.modules.users.services
         JSON.stringify(message)
       ); //_netConnection.call
     }
+		
+		public function userInactivityAuditResponse():void {
+			var message:Object = {
+				header: {name: "UserInactivityAuditResponseMsg", meetingId: UsersUtil.getInternalMeetingID(), 
+					userId: UsersUtil.getMyUserID()},
+				body: {userId: UsersUtil.getMyUserID()}
+			};
+			
+			var _nc:ConnectionManager = BBB.initConnectionManager();
+			_nc.sendMessage2x(
+				function(result:String):void { // On successful result
+				},
+				function(status:String):void { // status - On error occurred
+					var logData:Object = UsersUtil.initLogData();
+					logData.tags = ["apps"];
+					logData.message = "Error occured activity response.";
+					LOGGER.info(JSON.stringify(logData));
+				},
+				JSON.stringify(message)
+			); //_netConnection.call
+		}
 
     public function changeRecordingStatus(userID:String, recording:Boolean):void {
       var message:Object = {
@@ -328,7 +368,7 @@ package org.bigbluebutton.modules.users.services
       var message:Object = {
         header: {name: "MuteMeetingCmdMsg", meetingId: UsersUtil.getInternalMeetingID(), 
           userId: UsersUtil.getMyUserID()},
-        body: {mutedBy: UsersUtil.getMyUserID()}
+        body: {mutedBy: UsersUtil.getMyUserID(), mute: mute}
       };
       
       var _nc:ConnectionManager = BBB.initConnectionManager();
@@ -349,7 +389,7 @@ package org.bigbluebutton.modules.users.services
       var message:Object = {
         header: {name: "MuteAllExceptPresentersCmdMsg", meetingId: UsersUtil.getInternalMeetingID(), 
           userId: UsersUtil.getMyUserID()},
-        body: {mutedBy: UsersUtil.getMyUserID()}
+        body: {mutedBy: UsersUtil.getMyUserID(), mute: mute}
       };
 
       var _nc:ConnectionManager = BBB.initConnectionManager();
@@ -370,7 +410,7 @@ package org.bigbluebutton.modules.users.services
       var message:Object = {
         header: {name: "MuteUserCmdMsg", meetingId: UsersUtil.getInternalMeetingID(), 
           userId: UsersUtil.getMyUserID()},
-        body: {userId: userid, mutedBy: UsersUtil.getMyUserID()}
+        body: {userId: userid, mutedBy: UsersUtil.getMyUserID(), mute: mute}
       };
 
       var _nc:ConnectionManager = BBB.initConnectionManager();
@@ -456,11 +496,25 @@ package org.bigbluebutton.modules.users.services
       }, JSON.stringify(message));
     }
 
+    public function handleRequestPresenterGroupEvent():void {
+      var message:Object = {
+        header: {name: "GetPresenterGroupReqMsg", meetingId: UsersUtil.getInternalMeetingID(), userId: UsersUtil.getMyUserID()},
+        body: {requesterId: UsersUtil.getMyUserID()}
+      };
+
+      var _nc:ConnectionManager = BBB.initConnectionManager();
+      _nc.sendMessage2x(
+        function(result:String):void { },
+        function(status:String):void { LOGGER.error(status); },
+          JSON.stringify(message)
+      );
+    }
+
     public function getRoomMuteState():void{
       var message:Object = {
         header: {name: "IsMeetingMutedReqMsg", meetingId: UsersUtil.getInternalMeetingID(), 
           userId: UsersUtil.getMyUserID()},
-        body: {requesterId: UsersUtil.getMyUserID()}
+        body: {}
       };
          
       var _nc:ConnectionManager = BBB.initConnectionManager();
@@ -576,6 +630,28 @@ package org.bigbluebutton.modules.users.services
         JSON.stringify(message)
       );      
     }
+	
+	public function updateWebcamsOnlyForModerator(webcamsOnlyForModerator:Boolean, userID : String):void {
+		var message:Object = {
+			header: {name: "UpdateWebcamsOnlyForModeratorCmdMsg", meetingId: UsersUtil.getInternalMeetingID(), 
+				userId: UsersUtil.getMyUserID()},
+			body: {webcamsOnlyForModerator: webcamsOnlyForModerator, setBy: userID}
+		};
+		
+		var _nc:ConnectionManager = BBB.initConnectionManager();
+		_nc.sendMessage2x(
+			function(result:String):void { // On successful result
+				LOGGER.debug(result);
+			},
+			function(status:String):void { // status - On error occurred
+				var logData:Object = UsersUtil.initLogData();
+				logData.tags = ["apps"];
+				logData.message = "Error occured setting webcamsOnlyForModerator.";
+				LOGGER.info(JSON.stringify(logData));
+			},
+			JSON.stringify(message)
+		);
+	}
 
     public function changeRole(userID:String, role:String):void {
       var message:Object = {
@@ -598,6 +674,28 @@ package org.bigbluebutton.modules.users.services
         JSON.stringify(message)
       );
     }
+	
+	public function queryForWebcamsOnlyForModerator():void {
+		var message:Object = {
+			header: {name: "GetWebcamsOnlyForModeratorReqMsg", meetingId: UsersUtil.getInternalMeetingID(), 
+				userId: UsersUtil.getMyUserID()},
+			body: {requestedBy: UsersUtil.getMyUserID()}
+		};
+		
+		var _nc:ConnectionManager = BBB.initConnectionManager();
+		_nc.sendMessage2x(
+			function(result:String):void { // On successful result
+				LOGGER.debug(result);
+			},
+			function(status:String):void { // status - On error occurred
+				var logData:Object = UsersUtil.initLogData();
+				logData.tags = ["apps"];
+				logData.message = "Error occured query webcamsOnlyForModerator.";
+				LOGGER.info(JSON.stringify(logData));
+			},
+			JSON.stringify(message)
+		);
+	}
 
     public function queryForGuestPolicy():void {
       LOGGER.debug("queryForGuestPolicy");

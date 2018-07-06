@@ -81,8 +81,8 @@ const getPublicMessages = () => {
   const publicMessages = Chats.find({
     type: { $in: [PUBLIC_CHAT_TYPE, SYSTEM_CHAT_TYPE] },
   }, {
-      sort: ['fromTime'],
-    }).fetch();
+    sort: ['fromTime'],
+  }).fetch();
 
   return publicMessages;
 };
@@ -95,8 +95,8 @@ const getPrivateMessages = (userID) => {
       { fromUserId: userID },
     ],
   }, {
-      sort: ['fromTime'],
-    }).fetch();
+    sort: ['fromTime'],
+  }).fetch();
 
   return reduceAndMapMessages(messages);
 };
@@ -112,7 +112,8 @@ const isChatLocked = (receiverID) => {
     const isPrivChatLocked = meeting.lockSettingsProp.disablePrivChat;
     const isViewer = user.role === 'VIEWER';
 
-    return ((isPublic && isPubChatLocked && isViewer && user.locked) || (!isPublic && isPrivChatLocked && isViewer && user.locked));
+    return (isPublic && isPubChatLocked && isViewer && user.locked)
+      || (!isPublic && isPrivChatLocked && isViewer && user.locked);
   }
 
   return false;
@@ -194,6 +195,14 @@ const closePrivateChat = (chatID) => {
   }
 };
 
+// if this private chat has been added to the list of closed ones, remove it
+const removeFromClosedChatsSession = (chatID) => {
+  const currentClosedChats = Storage.getItem(CLOSED_CHAT_LIST_KEY);
+  if (_.indexOf(currentClosedChats, chatID) > -1) {
+    Storage.setItem(CLOSED_CHAT_LIST_KEY, _.without(currentClosedChats, chatID));
+  }
+};
+
 // We decode to prevent HTML5 escaped characters.
 const htmlDecode = (input) => {
   const e = document.createElement('div');
@@ -228,6 +237,7 @@ export default {
   updateUnreadMessage,
   sendMessage,
   closePrivateChat,
+  removeFromClosedChatsSession,
   exportChat,
   clearPublicChatHistory,
 };

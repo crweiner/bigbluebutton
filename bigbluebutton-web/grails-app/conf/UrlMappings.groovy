@@ -29,6 +29,10 @@ class UrlMappings {
 			action = [GET:'showThumbnail']
 		}
 
+		"/presentation/$conference/$room/$presentation_name/png/$id"(controller:"presentation") {
+			action = [GET:'showPng']
+		}
+
 		"/presentation/$conference/$room/$presentation_name/svgs"(controller:"presentation") {
 			action = [GET:'numberOfSvgs']
 		}
@@ -45,7 +49,7 @@ class UrlMappings {
 			action = [GET:'showTextfile']
 		}
 
-		"/presentation/$conference/$room/$presentation_name/download"(controller:"presentation") {
+		"/presentation/download/$meetingId/$presId/$presFilename"(controller:"presentation") {
 			action = [GET:'downloadFile']
 		}
       

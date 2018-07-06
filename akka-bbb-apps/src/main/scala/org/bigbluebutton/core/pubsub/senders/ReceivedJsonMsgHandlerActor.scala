@@ -60,6 +60,8 @@ class ReceivedJsonMsgHandlerActor(
         // Route via meeting manager as there is a race condition if we send directly to meeting
         // because the meeting actor might not have been created yet.
         route[RegisterUserReqMsg](meetingManagerChannel, envelope, jsonNode)
+      case EjectDuplicateUserReqMsg.NAME =>
+        route[EjectDuplicateUserReqMsg](meetingManagerChannel, envelope, jsonNode)
       case UserJoinMeetingReqMsg.NAME =>
         routeGenericMsg[UserJoinMeetingReqMsg](envelope, jsonNode)
       case UserJoinMeetingAfterReconnectReqMsg.NAME =>
@@ -68,6 +70,10 @@ class ReceivedJsonMsgHandlerActor(
         route[GetAllMeetingsReqMsg](meetingManagerChannel, envelope, jsonNode)
       case DestroyMeetingSysCmdMsg.NAME =>
         route[DestroyMeetingSysCmdMsg](meetingManagerChannel, envelope, jsonNode)
+      case EjectUserFromMeetingSysMsg.NAME =>
+        routeGenericMsg[EjectUserFromMeetingSysMsg](envelope, jsonNode)
+      case ValidateConnAuthTokenSysMsg.NAME =>
+        route[ValidateConnAuthTokenSysMsg](meetingManagerChannel, envelope, jsonNode)
 
       // Guests
       case GetGuestsWaitingApprovalReqMsg.NAME =>
@@ -86,6 +92,10 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[AddUserToPresenterGroupCmdMsg](envelope, jsonNode)
       case RemoveUserFromPresenterGroupCmdMsg.NAME =>
         routeGenericMsg[RemoveUserFromPresenterGroupCmdMsg](envelope, jsonNode)
+      case GetPresenterGroupReqMsg.NAME =>
+        routeGenericMsg[GetPresenterGroupReqMsg](envelope, jsonNode)
+      case UserInactivityAuditResponseMsg.NAME =>
+        routeGenericMsg[UserInactivityAuditResponseMsg](envelope, jsonNode)
 
       // Poll
       case StartCustomPollReqMsg.NAME =>
@@ -96,8 +106,6 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[StopPollReqMsg](envelope, jsonNode)
       case ShowPollResultReqMsg.NAME =>
         routeGenericMsg[ShowPollResultReqMsg](envelope, jsonNode)
-      case HidePollResultReqMsg.NAME =>
-        routeGenericMsg[HidePollResultReqMsg](envelope, jsonNode)
       case GetCurrentPollReqMsg.NAME =>
         routeGenericMsg[GetCurrentPollReqMsg](envelope, jsonNode)
       case RespondToPollReqMsg.NAME =>
@@ -136,6 +144,8 @@ class ReceivedJsonMsgHandlerActor(
         routeVoiceMsg[UserDisconnectedFromGlobalAudioMsg](envelope, jsonNode)
       case MuteMeetingCmdMsg.NAME =>
         routeGenericMsg[MuteMeetingCmdMsg](envelope, jsonNode)
+      case IsMeetingMutedReqMsg.NAME =>
+        routeGenericMsg[IsMeetingMutedReqMsg](envelope, jsonNode)
 
       // Breakout rooms
       case BreakoutRoomsListMsg.NAME =>
@@ -167,8 +177,6 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[SendCursorPositionPubMsg](envelope, jsonNode)
       case ModifyWhiteboardAccessPubMsg.NAME =>
         routeGenericMsg[ModifyWhiteboardAccessPubMsg](envelope, jsonNode)
-      case GetWhiteboardAccessReqMsg.NAME =>
-        routeGenericMsg[GetWhiteboardAccessReqMsg](envelope, jsonNode)
       case ClearWhiteboardPubMsg.NAME =>
         routeGenericMsg[ClearWhiteboardPubMsg](envelope, jsonNode)
       case UndoWhiteboardPubMsg.NAME =>
@@ -184,14 +192,14 @@ class ReceivedJsonMsgHandlerActor(
       // Presentation
       case SetCurrentPresentationPubMsg.NAME =>
         routeGenericMsg[SetCurrentPresentationPubMsg](envelope, jsonNode)
-      case GetPresentationInfoReqMsg.NAME =>
-        routeGenericMsg[GetPresentationInfoReqMsg](envelope, jsonNode)
       case SetCurrentPagePubMsg.NAME =>
         routeGenericMsg[SetCurrentPagePubMsg](envelope, jsonNode)
       case ResizeAndMovePagePubMsg.NAME =>
         routeGenericMsg[ResizeAndMovePagePubMsg](envelope, jsonNode)
       case RemovePresentationPubMsg.NAME =>
         routeGenericMsg[RemovePresentationPubMsg](envelope, jsonNode)
+      case SetPresentationDownloadablePubMsg.NAME =>
+        routeGenericMsg[SetPresentationDownloadablePubMsg](envelope, jsonNode)
       case PresentationUploadTokenReqMsg.NAME =>
         routeGenericMsg[PresentationUploadTokenReqMsg](envelope, jsonNode)
       case GetAllPresentationPodsReqMsg.NAME =>
@@ -214,6 +222,8 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[CreateNewPresentationPodPubMsg](envelope, jsonNode)
       case RemovePresentationPodPubMsg.NAME =>
         routeGenericMsg[RemovePresentationPodPubMsg](envelope, jsonNode)
+      case SetPresenterInPodReqMsg.NAME =>
+        routeGenericMsg[SetPresenterInPodReqMsg](envelope, jsonNode)
 
       // Caption
       case EditCaptionHistoryPubMsg.NAME =>
@@ -260,6 +270,10 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[GetRecordingStatusReqMsg](envelope, jsonNode)
       case GetScreenshareStatusReqMsg.NAME =>
         routeGenericMsg[GetScreenshareStatusReqMsg](envelope, jsonNode)
+      case GetWebcamsOnlyForModeratorReqMsg.NAME =>
+        routeGenericMsg[GetWebcamsOnlyForModeratorReqMsg](envelope, jsonNode)
+      case UpdateWebcamsOnlyForModeratorCmdMsg.NAME =>
+        routeGenericMsg[UpdateWebcamsOnlyForModeratorCmdMsg](envelope, jsonNode)
 
       // Lock settings
       case LockUserInMeetingCmdMsg.NAME =>

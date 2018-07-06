@@ -1,7 +1,6 @@
 package org.bigbluebutton.api2.domain
 
 import scala.collection.JavaConverters._
-import java.util.Map
 
 import scala.xml.{Elem, NodeSeq}
 
@@ -95,7 +94,7 @@ object RecMeta {
       val link = getText(playback, "link", "unknown")
       val processingTime = getValInt(playback, "processing_time", 0)
       val duration = getValInt(playback, "duration", 0)
-      val size = getValInt(playback, "size", 0)
+      val size = getValLong(playback, "size", 0)
       val extensions = getExtensions(playback)
       Some(RecMetaPlayback(format, link, processingTime, duration, size, extensions))
     }
@@ -130,7 +129,7 @@ object RecMeta {
     val published = getText(metaXml, "published", "true").toString.toBoolean
     val startTime = getValLong(metaXml, "start_time", 0)
     val endTime = getValLong(metaXml, "end_time", 0)
-    val rawSize = getValInt(metaXml, "raw_size", 0)
+    val rawSize = getValLong(metaXml, "raw_size", 0)
     val participants = getValInt(metaXml, "participants", 0)
     val meeting = getMeeting(metaXml)
     val meta = getMeta(metaXml)
@@ -175,7 +174,7 @@ object RecMeta {
 
 case class RecMeta(id: String, meetingId: String, internalMeetingId: Option[ String],
                    meetingName: String, state: String, published: Boolean, startTime: Long, endTime: Long,
-                   participants: Int, rawSize: Int, isBreakout: Boolean, meeting: Option[RecMetaMeeting],
+                   participants: Int, rawSize: Long, isBreakout: Boolean, meeting: Option[RecMetaMeeting],
                    meta: Option[collection.immutable.Map[String, String]], playback: Option[RecMetaPlayback],
                    breakout: Option[RecMetaBreakout], breakoutRooms: Vector[String]) {
 
@@ -324,7 +323,7 @@ case class RecMetaMeeting(id: String, externalId: String, name: String, breakout
 }
 
 case class RecMetaPlayback(format: String, link: String, processingTime: Int,
-                           duration: Int, size: Int, extensions: Option[scala.xml.NodeSeq]) {
+                           duration: Int, size: Long, extensions: Option[scala.xml.NodeSeq]) {
   def toXml(): Elem = {
     val buffer = new scala.xml.NodeBuffer
 

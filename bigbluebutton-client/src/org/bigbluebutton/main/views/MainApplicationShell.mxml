@@ -45,15 +45,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 		<mate:Listener type="{CloseWindowEvent.CLOSE_WINDOW_EVENT}" method="handleCloseWindowEvent"/>
 		<mate:Listener type="{AddUIComponentToMainCanvas.ADD_COMPONENT}" method="addComponentToCanvas" />
 		<mate:Listener type="{AppVersionEvent.APP_VERSION_EVENT}" method="handleApplicationVersionEvent" />	
-		<mate:Listener type="{MeetingNotFoundEvent.MEETING_NOT_FOUND}" method="handleMeetingNotFoundEvent" />
-		<mate:Listener type="{ConnectionFailedEvent.USER_LOGGED_OUT}" method="handleLogout" />
-	    <mate:Listener type="{ConnectionFailedEvent.USER_EJECTED_FROM_MEETING}" method="handleLogout" />
-		<mate:Listener type="{ConnectionFailedEvent.CONNECTION_FAILED}" method="attemptReconnect" />
-		<mate:Listener type="{ConnectionFailedEvent.CONNECTION_CLOSED}" method="attemptReconnect"  />
-		<mate:Listener type="{ConnectionFailedEvent.UNKNOWN_REASON}" method="attemptReconnect"  />
-		<mate:Listener type="{ConnectionFailedEvent.CONNECTION_REJECTED}" method="attemptReconnect"  />
-		<mate:Listener type="{ExitApplicationEvent.EXIT_APPLICATION}" method="handleExitApplicationEvent" />
-		<mate:Listener type="{ConfigLoadedEvent.CONFIG_LOADED_EVENT}" method="initOptions"  />
+		<mate:Listener type="{ExitApplicationEvent.CLOSE_APPLICATION}" method="handleCloseApplication"/>
 		<mate:Listener type="{FullscreenToggledEvent.IS_FULLSCREEN_TOGGLED}" method="handleFullscreenToggleState"  />
 		<mate:Listener type="{FlashMicSettingsEvent.FLASH_MIC_SETTINGS}" method="handleFlashMicSettingsEvent"  />
 		<mate:Listener type="{WebRTCEchoTestEvent.WEBRTC_ECHO_TEST_CONNECTING}" method="handleWebRTCEchoTestConnectingEvent"  />
@@ -68,22 +60,22 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 		<mate:Listener type="{ShortcutEvent.OPEN_SHORTCUT_WIN}" method="openShortcutHelpWindow" />
 		<mate:Listener type="{BBBEvent.OPEN_WEBCAM_PREVIEW}" method="openVideoPreviewWindow" />
 		<mate:Listener type="{BBBEvent.INACTIVITY_WARNING_EVENT}" method="handleInactivityWarningEvent" />
+		<mate:Listener type="{BBBEvent.USER_INACTIVITY_AUDIT_EVENT}" method="handleUserInactivityAuditEvent" />
 		<mate:Listener type="{LockControlEvent.OPEN_LOCK_SETTINGS}" method="openLockSettingsWindow" />
 		<mate:Listener type="{BreakoutRoomEvent.OPEN_BREAKOUT_ROOMS_PANEL}" method="openBreakoutRoomsWindow" />
-		<mate:Listener type="{InvalidAuthTokenEvent.INVALID_AUTH_TOKEN}" method="handleInvalidAuthToken" />
 		
 		<mate:Listener type="{SwitchedLayoutEvent.SWITCHED_LAYOUT_EVENT}" method="onLayoutChanged" />
 		<mate:Listener type="{LocaleChangeEvent.LOCALE_CHANGED}" method="onLocaleChanged" />
 	
 		<mate:Listener type="{NetworkStatsEvent.OPEN_NETSTATS_WIN}" method="openNetworkStatsWindow" />
-		<mate:Listener type="{BBBEvent.RETRIEVE_GUEST_POLICY}" method="setGuestPolicy"/>
-		<mate:Listener type="{ConnectionFailedEvent.MODERATOR_DENIED_ME}" method="handleLogout" />
 		<mate:Listener type="{BBBEvent.MODERATOR_ALLOWED_ME_TO_JOIN}" method="guestAllowed" />
 		<mate:Listener type="{NewGuestWaitingEvent.NEW_GUEST_WAITING}" method="refreshGuestView" />
 		<mate:Listener type="{BBBEvent.REMOVE_GUEST_FROM_LIST}" method="removeGuestWindow" />
 		<mate:Listener type="{BBBEvent.WAITING_FOR_MODERATOR_ACCEPTANCE}" method="openWaitWindow" />
 		<mate:Listener type="{BBBEvent.RECONNECT_DISCONNECTED_EVENT}" method="closeWaitWindow"/>
     	<mate:Listener type="{RoundTripLatencyReceivedEvent.ROUND_TRIP_LATENCY_RECEIVED}" method="handleRoundTripLatencyReceivedEvent"/>
+		<mate:Listener type="{ClosePendingGuestWindow.CLOSE_PENDING_GUEST_WINDOW}" method="handleClosePendingGuestWindow" />
+		<mate:Listener type="{ConferenceCreatedEvent.CONFERENCE_CREATED_EVENT}" method="handleConferenceCreatedEvent" />
     
 	</fx:Declarations>
 	<fx:Script>
@@ -91,15 +83,11 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			import com.asfusion.mate.events.Dispatcher;
 			
 			import flash.events.Event;
-			import flash.events.IOErrorEvent;
 			import flash.events.TextEvent;
-			import flash.geom.Point;
-			import flash.net.navigateToURL;
 			import flash.utils.setTimeout;
 			
 			import mx.binding.utils.ChangeWatcher;
 			import mx.collections.ArrayCollection;
-			import mx.controls.Alert;
 			import mx.core.FlexGlobals;
 			import mx.core.IFlexDisplayObject;
 			import mx.core.UIComponent;
@@ -120,30 +108,30 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			import org.bigbluebutton.core.Options;
 			import org.bigbluebutton.core.PopUpUtil;
 			import org.bigbluebutton.core.UsersUtil;
+			import org.bigbluebutton.core.events.ClosePendingGuestWindow;
 			import org.bigbluebutton.core.events.FullscreenToggledEvent;
 			import org.bigbluebutton.core.events.LockControlEvent;
 			import org.bigbluebutton.core.events.NewGuestWaitingEvent;
 			import org.bigbluebutton.core.events.RoundTripLatencyReceivedEvent;
 			import org.bigbluebutton.core.events.SwitchedLayoutEvent;
+			import org.bigbluebutton.core.model.LiveMeeting;
 			import org.bigbluebutton.core.vo.LockSettingsVO;
 			import org.bigbluebutton.main.events.AppVersionEvent;
 			import org.bigbluebutton.main.events.BBBEvent;
 			import org.bigbluebutton.main.events.BreakoutRoomEvent;
 			import org.bigbluebutton.main.events.ClientStatusEvent;
-			import org.bigbluebutton.main.events.ConfigLoadedEvent;
 			import org.bigbluebutton.main.events.ExitApplicationEvent;
-			import org.bigbluebutton.main.events.InvalidAuthTokenEvent;
-			import org.bigbluebutton.main.events.MeetingNotFoundEvent;
 			import org.bigbluebutton.main.events.ModuleLoadEvent;
 			import org.bigbluebutton.main.events.NetworkStatsEvent;
 			import org.bigbluebutton.main.events.ShortcutEvent;
 			import org.bigbluebutton.main.model.Guest;
+			import org.bigbluebutton.main.model.GuestPolicy;
 			import org.bigbluebutton.main.model.ImageLoader;
 			import org.bigbluebutton.main.model.options.BrandingOptions;
 			import org.bigbluebutton.main.model.options.BrowserVersionsOptions;
 			import org.bigbluebutton.main.model.options.LanguageOptions;
 			import org.bigbluebutton.main.model.options.LayoutOptions;
-			import org.bigbluebutton.main.model.users.events.ConnectionFailedEvent;
+			import org.bigbluebutton.main.model.users.events.ConferenceCreatedEvent;
 			import org.bigbluebutton.modules.phone.events.AudioSelectionWindowEvent;
 			import org.bigbluebutton.modules.phone.events.FlashMicSettingsEvent;
 			import org.bigbluebutton.modules.phone.events.WebRTCCallEvent;
@@ -163,7 +151,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			private var stoppedModules:ArrayCollection;			
 			private var logWindow:LogWindow;
 			private var waitWindow:WaitingWindow = null;
-			private var guestWindow:GuestWindow = null;
 			private var scWindow:ShortcutHelpWindow;
 			private var connectionLostWindow:ConnectionLostWindow;
 			
@@ -184,17 +171,16 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			
 			[Bindable] private var showToolbarOpt:Boolean = true;
 			[Bindable] private var _showToolbar:Boolean = true;
-			private const DEFAULT_TOOLBAR_HEIGHT:Number = 50;
+			public static const DEFAULT_TOOLBAR_HEIGHT:Number = 50;
 			[Bindable] private var toolbarHeight:Number = DEFAULT_TOOLBAR_HEIGHT;
 			[Bindable] private var showFooterOpt:Boolean = true;
 			[Bindable] private var _showFooter:Boolean = true;
-			[Bindable] private var footerHeight:Number = 60;
+			[Bindable] private var footerHeight:Number = 50;
 			
 			[Bindable] private var isTunneling:Boolean = false;
 			
-			private var guestManagement:GuestManagement = null;
 			private var guest:Guest = new Guest();
-			private var guestPolicy:String = "ASK_MODERATOR";
+			private var guestPolicy:String = GuestPolicy.ASK_MODERATOR;
 
 			private var confirmingLogout:Boolean = false;
 			
@@ -203,7 +189,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			private var resizeExecuting:Boolean = false;
 
   			private var _respTimer:ResponsivenessTimer;
-      
+
 			public function getLogWindow() : LogWindow
 			{
 				if (logWindow == null){
@@ -212,10 +198,10 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				return logWindow;
 			}
       
-			public function initOptions(e:Event):void {
-				brandingOptions = Options.getOptions(BrandingOptions) as BrandingOptions;
+			public function initOptions():void {
 				layoutOptions = Options.getOptions(LayoutOptions) as LayoutOptions;
 				usersOptions = Options.getOptions(UsersOptions) as UsersOptions;
+				brandingOptions = Options.getOptions(BrandingOptions) as BrandingOptions;
 				
 				updateCopyrightText();
 				loadBackground();
@@ -241,19 +227,29 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				_respTimer.start();
 			}
 			
+			private function handleConferenceCreatedEvent(event:ConferenceCreatedEvent):void {
+				updateCopyrightText();
+			}
+			
 			private function updateCopyrightText():void {
+				brandingOptions = Options.getOptions(BrandingOptions) as BrandingOptions;
+
 				if (StringUtils.isEmpty(brandingOptions.copyright)) {
 					copyrightText = ResourceUtil.getInstance().getString('bbb.mainshell.copyrightLabel2',[appVersion]);
 				} else {
 					copyrightText = String(brandingOptions.copyright).replace("{0}", appVersion);
 				}
+				
+				if (!StringUtils.isEmpty(LiveMeeting.inst().meeting.customCopyright)) {
+					copyrightText = LiveMeeting.inst().meeting.customCopyright;
+				}
 			}
 			
 			private function initQuote() : void {
-				if (brandingOptions.showQuote) {
-					quoteView.init();
-				} else {
+				if (!brandingOptions.showQuote) {
 					quoteView.dispose();
+				} else {
+					quoteView.init();
 				}
 			}
 
@@ -261,6 +257,8 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				globalDispatcher = new Dispatcher();
 
 				copyrightLabel2.addEventListener(FlexEvent.UPDATE_COMPLETE, updateCopyrightLabelDimensions);
+				
+				initOptions();
 			}
 			
 			// See this stackoverflow post for an explanation on why the size watching is done this way, https://stackoverflow.com/a/2141223
@@ -297,16 +295,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				if (heightWatch != null) heightWatch.unwatch();
 			}
 			
-			private function setGuestPolicy(event:BBBEvent):void {
-				guestPolicy = event.payload.guestPolicy;
-				if(guestManagement == null) {
-					LOGGER.debug("ADD Guest Event");
-					guestManagement = new GuestManagement();
-					guestManagement.setGuestPolicy(guestPolicy);
-					guestManagement.addToSettings();
-				}
-			}
-
 			private function updateCopyrightLabelDimensions(e:Event = null):void {
 				var appWidth:Number = parentApplication.width;
 				
@@ -334,7 +322,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 			private function handleApplicationVersionEvent(event:AppVersionEvent):void {
 				var logData:Object = UsersUtil.initLogData();
-
+				
 				appVersion = event.appVersion;
 				updateCopyrightText();
 
@@ -359,34 +347,31 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				}
 			}
 
-			private function closeGuestWindow(e:Event = null):void {
-				if(guestWindow != null) {
-					guestWindow.closeWindow();
-					guestWindow = null;
+			private function refreshGuestView(evt:NewGuestWaitingEvent):void {
+				LOGGER.debug("NewGuestWaitingEvent");
+				// do not show the guest window if the user isn't moderator or if he's waiting for acceptance
+				if (!UsersUtil.amIModerator() || UsersUtil.amIWaitingForAcceptance() && usersOptions.enableGuestUI) {
+					return;
+				}
+				
+				if (!usersOptions.guestSoftMode) {
+					LOGGER.debug("OPENING GUEST WINDOW");
+					var guestWindow : PendingGuestsWindow = PopUpUtil.createModalPopUp( mdiCanvas, PendingGuestsWindow, false) as PendingGuestsWindow;
+					PopUpUtil.lockPosition(guestWindow, function():Point {
+						return new Point(parentApplication.screen.width - guestWindow.width - 20, 20); 
+					});	
 				}
 			}
 
-			private function refreshGuestView(evt:NewGuestWaitingEvent):void {
-				// do not show the guest window if the user isn't moderator or if he's waiting for acceptance
-				if (!UsersUtil.amIModerator() || UsersUtil.amIWaitingForAcceptance() && usersOptions.enableGuestUI) {
-					closeGuestWindow();
-					return;
-				}
-
-				if (guestWindow == null) {
-					guestWindow = PopUpUtil.createModalPopUp( mdiCanvas, GuestWindow, false) as GuestWindow;
-					guestWindow.addEventListener(Event.CLOSE, closeGuestWindow);
-
-					guestWindow.x = systemManager.screen.width - guestWindow.width - 20;
-					guestWindow.y = 20;
-				}
-				guestWindow.refreshGuestView();
+			private function handleClosePendingGuestWindow(event: ClosePendingGuestWindow): void {
+				PopUpUtil.removePopUp(PendingGuestsWindow);
 			}
 
 			public function removeGuestWindow(evt:BBBEvent):void {
-				if (guestWindow != null) {
-					guestWindow.remove(evt.payload.userId);
-				}
+        LOGGER.debug("REMOVE GUEST WINDOW");
+				//if (guestWindow != null) {
+				//	guestWindow.remove(evt.payload.userId);
+				//}
 			}
 
 			private function closeWaitWindow(e:BBBEvent):void {
@@ -398,11 +383,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 			private function openWaitWindow(evt:BBBEvent):void {
 				progressBar.visible = false;
-				waitWindow = PopUpUtil.createModalPopUp( mdiCanvas, WaitingWindow, false) as WaitingWindow;
-
-				// Calculate position of TitleWindow in Application's coordinates.
-				waitWindow.x = (systemManager.screen.width - waitWindow.width) / 2;
-				waitWindow.y = (systemManager.screen.height - waitWindow.height) / 2;
+				waitWindow = PopUpUtil.createModalPopUp( FlexGlobals.topLevelApplication as DisplayObject, WaitingWindow, true) as WaitingWindow;
 			}
 			
 			private function openLogWindow():void {
@@ -458,12 +439,12 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				var window:IBbbModuleWindow = event.window;
 	   			mdiCanvas.addWindow(window);
 	   		}
-	   		
-	   		private function handleCloseWindowEvent(event:CloseWindowEvent):void {
-	   			var window:IBbbModuleWindow = event.window;
-				  mdiCanvas.removeWindow(window);
-	   		}
-	   		
+			
+			private function handleCloseWindowEvent(event:CloseWindowEvent):void {
+				var window:IBbbModuleWindow = event.window;
+				mdiCanvas.removeWindow(window);
+			}
+
 			private function versionCheck():void {
 				var browserOptions : BrowserVersionsOptions = Options.getOptions(BrowserVersionsOptions) as BrowserVersionsOptions;
 				if (!StringUtils.isEmpty(browserOptions.chrome) && !StringUtils.isEmpty(browserOptions.firefox) && !StringUtils.isEmpty(browserOptions.flash)) {
@@ -515,8 +496,14 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 	   			mdiCanvas.addChild(e.component);
 	   		}
 	   		
+			private function handleUserInactivityAuditEvent(e:BBBEvent):void {
+				var inactivityWarning:UserInactivityAuditWindow = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, 
+					UserInactivityAuditWindow, true) as UserInactivityAuditWindow;
+				inactivityWarning.duration = e.payload.duration;
+			}
+			
 			private function handleInactivityWarningEvent(e:BBBEvent):void {
-				var inactivityWarning:InactivityWarningWindow = PopUpUtil.createModalPopUp(mdiCanvas, InactivityWarningWindow, true) as InactivityWarningWindow;
+				var inactivityWarning:InactivityWarningWindow = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, InactivityWarningWindow, true) as InactivityWarningWindow;
 				inactivityWarning.duration = e.payload.duration;
 			}
 
@@ -527,40 +514,23 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
                  * avoid this case. - Chad
                  */
                 this.callLater(function():void {
-                    var micSettings:FlashMicSettings = PopUpUtil.createModalPopUp(mdiCanvas, FlashMicSettings, false) as FlashMicSettings;
-                    if (micSettings) {
-                        micSettings.addEventListener(FlexEvent.CREATION_COMPLETE, function(e:Event):void {
-                            var point1:Point = new Point();
-                            // Calculate position of TitleWindow in Application's coordinates. 
-                            point1.x = width / 2;
-                            point1.y = height / 2;
-                            micSettings.x = point1.x - (micSettings.width / 2);
-                            micSettings.y = point1.y - (micSettings.height / 2);
-                        });
-                    }
+                    PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, FlashMicSettings, true) as FlashMicSettings;
                 });
             }
 
             private function openVideoPreviewWindow(event:BBBEvent):void {
-                var camSettings:CameraDisplaySettings = PopUpUtil.createModalPopUp(mdiCanvas, CameraDisplaySettings, true) as CameraDisplaySettings;
+                var camSettings:CameraDisplaySettings = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, CameraDisplaySettings, true) as CameraDisplaySettings;
                 if (camSettings) {
                     camSettings.defaultCamera = event.payload.defaultCamera;
                     camSettings.camerasArray = event.payload.camerasArray;
                     camSettings.publishInClient = event.payload.publishInClient;
                     camSettings.chromePermissionDenied = event.payload.chromePermissionDenied;
 					camSettings.updateCameraList();
-
-                    var point1:Point = new Point();
-                    // Calculate position of TitleWindow in Application's coordinates. 
-                    point1.x = width / 2;
-                    point1.y = height / 2;
-                    camSettings.x = point1.x - (camSettings.width / 2);
-                    camSettings.y = point1.y - (camSettings.height / 2);
                 }
             }
 
             private function handleShowAudioSelectionWindowEvent(event:AudioSelectionWindowEvent):void {
-                PopUpUtil.createModalPopUp(mdiCanvas, AudioSelectionWindow, true);
+                PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, AudioSelectionWindow, true);
             }
 
             private function handleRoundTripLatencyReceivedEvent(event: RoundTripLatencyReceivedEvent): void {
@@ -570,7 +540,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
             private function handleWebRTCMediaRequestEvent(event:WebRTCMediaEvent):void {
                 var options:PhoneOptions = new PhoneOptions();
                 if (!options.showMicrophoneHint) return;
-                var browserPermissionHelper:BrowserPermissionHelper = PopUpUtil.createModalPopUp(mdiCanvas, BrowserPermissionHelper, false) as BrowserPermissionHelper;
+                var browserPermissionHelper:BrowserPermissionHelper = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, BrowserPermissionHelper, false) as BrowserPermissionHelper;
                 if (BrowserCheck.isFirefox()) {
                     if (browserPermissionHelper) {
 						if (Capabilities.os.indexOf("Mac") >= 0){
@@ -584,7 +554,11 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
                     }
                 } else if (BrowserCheck.isChrome()) {
                     if (browserPermissionHelper) {
-						browserPermissionHelper.currentState = "chromeMic";
+						if (Capabilities.os.indexOf("Mac") >= 0){
+							browserPermissionHelper.currentState = "chromeMicMacOSX";
+						} else {
+							browserPermissionHelper.currentState = "chromeMic";
+						}
 						browserPermissionHelper.x = 50;
 						browserPermissionHelper.y = 130;
                     }
@@ -592,17 +566,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
             }
 
             private function handleWebRTCEchoTestConnectingEvent(event:WebRTCEchoTestEvent):void {
-                var webRTCEchoTest:WebRTCEchoTest = PopUpUtil.createModalPopUp(mdiCanvas, WebRTCEchoTest, false) as WebRTCEchoTest;
-                if (webRTCEchoTest) {
-                    webRTCEchoTest.addEventListener(FlexEvent.CREATION_COMPLETE, function(e:Event):void {
-                        var point1:Point = new Point();
-                        // Calculate position of TitleWindow in Application's coordinates. 
-                        point1.x = width / 2;
-                        point1.y = height / 2;
-                        webRTCEchoTest.x = point1.x - (webRTCEchoTest.width / 2);
-                        webRTCEchoTest.y = point1.y - (webRTCEchoTest.height / 2);
-                    });
-                }
+                PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, WebRTCEchoTest, true) as WebRTCEchoTest;
             }
 
             private function handleShareCameraRequestEvent(event:ShareCameraRequestEvent):void {
@@ -613,50 +577,17 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
             }
 			
 			private function showbrowserPermissionHelper() : void {
-				var browserPermissionHelper : BrowserPermissionHelper = PopUpUtil.createNonModalPopUp(mdiCanvas, BrowserPermissionHelper, false) as BrowserPermissionHelper;
+				var browserPermissionHelper : BrowserPermissionHelper = PopUpUtil.createNonModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, BrowserPermissionHelper, false) as BrowserPermissionHelper;
 				if (browserPermissionHelper) {
-					browserPermissionHelper.currentState = "chromeCam";
+					if (Capabilities.os.indexOf("Mac") >= 0){
+						browserPermissionHelper.currentState = "chromeCamMacOSX";
+					} else {
+						browserPermissionHelper.currentState = "chromeCam";
+					}
 					browserPermissionHelper.x = 20;
 					browserPermissionHelper.y = 150;
 				}
 			}
-
-            private function handleMeetingNotFoundEvent(e:MeetingNotFoundEvent):void {
-                showlogoutWindow(ResourceUtil.getInstance().getString('bbb.mainshell.meetingNotFound'));
-            }
-
-            private function showlogoutWindow(reason:String):void {
-                if (layoutOptions != null && layoutOptions.showLogoutWindow) {
-                    if (UsersUtil.iAskedToLogout()) {
-                        handleExitApplicationEvent();
-                        return;
-                    }
-                    var loggedOutWindow:LoggedOutWindow = PopUpUtil.createModalPopUp(mdiCanvas, LoggedOutWindow, false) as LoggedOutWindow;
-                    if (loggedOutWindow) {
-                        var point1:Point = new Point();
-                        // Calculate position of TitleWindow in Application's coordinates. 
-                        point1.x = width / 2;
-                        point1.y = height / 2;
-                        loggedOutWindow.x = point1.x - (loggedOutWindow.width / 2);
-                        loggedOutWindow.y = point1.y - (loggedOutWindow.height / 2);
-
-                        loggedOutWindow.setReason(reason);
-                        mdiCanvas.removeAllPopUps();
-                        removeToolBars();
-                    }
-                } else {
-                    mdiCanvas.removeAllPopUps();
-                    removeToolBars();
-                    var pageHost:String = FlexGlobals.topLevelApplication.url.split("/")[0];
-                    var pageURL:String = FlexGlobals.topLevelApplication.url.split("/")[2];
-                    LOGGER.debug("SingOut to [{0}//{1}/bigbluebutton/api/signOut]", [pageHost, pageURL]);
-                    var request:URLRequest = new URLRequest(pageHost + "//" + pageURL + "/bigbluebutton/api/signOut");
-                    var urlLoader:URLLoader = new URLLoader();
-                    urlLoader.addEventListener(Event.COMPLETE, handleLogoutComplete);
-                    urlLoader.addEventListener(IOErrorEvent.IO_ERROR, handleLogoutError);
-                    urlLoader.load(request);
-                }
-            }
 
             /**
              * Removes toolbars from the display list.
@@ -666,43 +597,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
                 this.removeChild(toolbar);
                 this.removeChild(controlBar);
             }
-
-            private function handleLogout(e:ConnectionFailedEvent):void {
-                if (e is ConnectionFailedEvent) {
-                    showlogoutWindow((e as ConnectionFailedEvent).type);
-                } else
-                    showlogoutWindow("You have logged out of the conference");
-            }
-
-            private function handleExitApplicationEvent(e:ExitApplicationEvent = null):void {
-                if (! UsersUtil.isBreakout()) {
-                    navigateToURL(new URLRequest(BBB.getLogoutURL()), "_self");
-                } else {
-                    ExternalInterface.call("window.close");
-                }
-            }
-
-			private function redirectToLogoutUrl ():void {
-        		var logoutURL:String = BBB.getLogoutURL();
-				var request:URLRequest = new URLRequest(logoutURL);
-				LOGGER.debug("Logging out to: {0}", [logoutURL]);
-				navigateToURL(request, '_self');
-			}
-			
-
-			private function handleLogoutError(e:Event):void {
-				LOGGER.debug("Call to signOut URL failed.");
-				redirectToLogoutUrl();
-			}
-			
-			private function handleLogoutComplete(e:Event):void {	
-				LOGGER.debug("Call to signOut URL succeeded.");
-				redirectToLogoutUrl();
-			}
-			
-			private function attemptReconnect(e:ConnectionFailedEvent):void{
-				handleLogout(e);
-			}
 			
 			private function handleAddToolbarComponent(event:ToolbarButtonEvent):void {
 				if (event.location == ToolbarButtonEvent.BOTTOM_TOOLBAR) {
@@ -724,11 +618,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				lblWebRTC.visible = lblWebRTC.includeInLayout = false;
 			}
 
-            private function handleInvalidAuthToken(event:InvalidAuthTokenEvent):void {
-                showlogoutWindow(ResourceUtil.getInstance().getString('bbb.mainshell.invalidAuthToken'));
-                globalDispatcher.dispatchEvent(new BBBEvent(BBBEvent.CANCEL_RECONNECTION_EVENT));
-            }
-
 			private function handleRemoveToolbarComponent(event:ToolbarButtonEvent):void {
 				if (addedBtns.contains(event.button as UIComponent))
 					addedBtns.removeChild(event.button as UIComponent);
@@ -748,7 +637,10 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 			private function updateToolbarHeight():void {
 				if (toolbarHeight != 0) {
-					toolbarHeight = Math.max(DEFAULT_TOOLBAR_HEIGHT, toolbar.logo.height + toolbar.quickLinks.includeInLayout ? toolbar.quickLinks.height : 0);
+					toolbarHeight = DEFAULT_TOOLBAR_HEIGHT;
+					if (toolbar.quickLinks.includeInLayout) {
+						toolbarHeight += toolbar.quickLinks.height;
+					}
 					if (UsersUtil.isBreakout()) {
 						toolbarHeight += toolbar.breakoutRibbon.height;
 					}
@@ -797,27 +689,22 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
             private function openLockSettingsWindow(event:LockControlEvent):void {
                 var lsv:LockSettingsVO = UsersUtil.getLockSettings();
 
-                var popUp:IFlexDisplayObject = PopUpUtil.createModalPopUp(mdiCanvas, LockSettings, false);
+                var popUp:IFlexDisplayObject = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, LockSettings, true);
                 if (popUp) {
                     var ls:LockSettings = LockSettings(popUp);
                     ls.disableCam = lsv.getDisableCam();
                     ls.disableMic = lsv.getDisableMic();
+					ls.webcamsOnlyForModerator = LiveMeeting.inst().meeting.webcamsOnlyForModerator;
                     ls.disablePrivChat = lsv.getDisablePrivateChat();
                     ls.disablePubChat = lsv.getDisablePublicChat();
                     ls.lockedLayout = lsv.getLockedLayout();
                     ls.lockOnJoin = lsv.getLockOnJoin();
                     ls.lockOnJoinConfigurable = lsv.getLockOnJoinConfigurable();
-
-                    var point1:Point = new Point();
-                    point1.x = width / 2;
-                    point1.y = height / 2;
-                    ls.x = point1.x - (ls.width / 2);
-                    ls.y = point1.y - (ls.height / 2);
                 }
             }
 
             private function openBreakoutRoomsWindow(e:BreakoutRoomEvent):void {
-                var popUp:IFlexDisplayObject = PopUpUtil.createModalPopUp(mdiCanvas, BreakoutRoomSettings, true);
+                var popUp:IFlexDisplayObject = PopUpUtil.createModalPopUp(FlexGlobals.topLevelApplication as DisplayObject, BreakoutRoomSettings, true);
                 if (popUp != null) {
                     BreakoutRoomSettings(popUp).initCreateBreakoutRooms(e.joinMode, e.record);
                 }
@@ -843,8 +730,13 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				if (ResourceUtil.getInstance().isRTLEnabled()) {
 					FlexGlobals.topLevelApplication.setStyle("layoutDirection", ResourceUtil.getInstance().getCurrentLanguageDirection());
 				}
+				PopUpUtil.initAlert();
 			}
 
+			private function handleCloseApplication(event:ExitApplicationEvent):void {
+				mdiCanvas.removeAllPopUps();
+				removeToolBars();
+			}
 		]]>
 	</fx:Script>
 
@@ -860,7 +752,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 					   visible="{_showToolbar}"
 					   includeInLayout="{showToolbarOpt}"
 					   verticalAlign="middle" 
-					   toolbarOptions="{layoutOptions}" 
 					   updateComplete="updateToolbarHeight()"/>
 				
 	<!-- MainCanvas height has to be forced or it will never show and the application will not continue loading -->
@@ -874,7 +765,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 		<mx:Canvas id="backgroundPlaceHolder" width="100%" height="100%" />
 		<mx:VBox horizontalCenter="0" verticalCenter="0" horizontalAlign="center" verticalGap="20">
 			<views:QuotesView id="quoteView"/>
-			<views:LoadingBar id="progressBar" width="280" height="15" labelWidth="280" textAlign="center"/>
+			<views:LoadingBar id="progressBar"/>
 		</mx:VBox>
 	</views:MainCanvas>	
 	

@@ -26,9 +26,10 @@ package org.bigbluebutton.main.model.users
 	import flash.events.SecurityErrorEvent;
 	import flash.events.TimerEvent;
 	import flash.net.NetConnection;
+	import flash.net.ObjectEncoding;
 	import flash.net.Responder;
 	import flash.utils.Timer;
-	
+	import mx.utils.ObjectUtil;
 	import org.as3commons.logging.api.ILogger;
 	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.core.BBB;
@@ -41,12 +42,12 @@ package org.bigbluebutton.main.model.users
 	import org.bigbluebutton.core.events.TokenValidReconnectEvent;
 	import org.bigbluebutton.core.managers.ReconnectionManager;
 	import org.bigbluebutton.core.model.LiveMeeting;
-	import org.bigbluebutton.core.services.BandwidthMonitor;
 	import org.bigbluebutton.main.events.BBBEvent;
 	import org.bigbluebutton.main.events.InvalidAuthTokenEvent;
 	import org.bigbluebutton.main.model.options.ApplicationOptions;
 	import org.bigbluebutton.main.model.users.events.ConnectionFailedEvent;
 	import org.bigbluebutton.main.model.users.events.UsersConnectionEvent;
+	import org.bigbluebutton.util.ConnUtil;
 
     public class NetConnectionDelegate {
         private static const LOGGER:ILogger = getClassLogger(NetConnectionDelegate);
@@ -78,7 +79,7 @@ package org.bigbluebutton.main.model.users
         public function NetConnectionDelegate():void {
             dispatcher = new Dispatcher();
             _netConnection = new NetConnection();
-            _netConnection.proxyType = "best";
+						_netConnection.objectEncoding = ObjectEncoding.AMF3;
             _netConnection.client = this;
             _netConnection.addEventListener( NetStatusEvent.NET_STATUS, netStatus );
             _netConnection.addEventListener( AsyncErrorEvent.ASYNC_ERROR, netASyncError );
@@ -112,7 +113,7 @@ package org.bigbluebutton.main.model.users
                 _messageListeners[notify].onMessage(messageName, message);
               }
             } catch(error:Error) {
-              LOGGER.error("Exception dispatched by a MessageListener, error: " + error.message);
+              LOGGER.error("Exception dispatched by a MessageListener, error: " + error.message + ", while trying to process " + ObjectUtil.toString(message));
             }
           } else {
             LOGGER.debug("Message name is undefined");
@@ -152,6 +153,7 @@ package org.bigbluebutton.main.model.users
               }
             } else {
                 dispatcher.dispatchEvent(new InvalidAuthTokenEvent());
+				dispatcher.dispatchEvent(new BBBEvent(BBBEvent.CANCEL_RECONNECTION_EVENT));
             }
       
             if (reconnecting) {
@@ -165,6 +167,8 @@ package org.bigbluebutton.main.model.users
             messageName != "UpdateBreakoutUsersEvtMsg" &&
             messageName != "BreakoutRoomsTimeRemainingUpdateEvtMsg" &&
             messageName != "UserTalkingVoiceEvtMsg" &&
+            messageName != "DoLatencyTracerMsg" &&
+            messageName != "ServerToClientLatencyTracerMsg" &&
             messageName != "MeetingTimeRemainingUpdateEvtMsg") {
             LOGGER.debug("onMessageFromServer2x - " + msg);
           }
@@ -217,8 +221,6 @@ package org.bigbluebutton.main.model.users
               authToken);
 
             var message: ValidateAuthTokenReqMsg = new ValidateAuthTokenReqMsg(body);
-
-            LOGGER.debug("******* msg \n" + JSON.stringify(message));
 
             sendMessage2x(
                 // result - On successful result
@@ -317,6 +319,7 @@ package org.bigbluebutton.main.model.users
               LiveMeeting.inst().me.authTokenValid = true;
             } else {
                 dispatcher.dispatchEvent(new InvalidAuthTokenEvent());
+				dispatcher.dispatchEvent(new BBBEvent(BBBEvent.CANCEL_RECONNECTION_EVENT));
             }
 
             if (reconnecting) {
@@ -343,6 +346,7 @@ package org.bigbluebutton.main.model.users
 //              LiveMeeting.inst().me.authTokenValid = true;
             } else {
                 dispatcher.dispatchEvent(new InvalidAuthTokenEvent());
+				dispatcher.dispatchEvent(new BBBEvent(BBBEvent.CANCEL_RECONNECTION_EVENT));
             }
       
             if (reconnecting) {
@@ -402,18 +406,29 @@ package org.bigbluebutton.main.model.users
                 
             try {
                 var appURL:String = _applicationOptions.uri;
-                var pattern:RegExp = /(?P<protocol>.+):\/\/(?P<server>.+)\/(?P<app>.+)/;
-                var result:Array = pattern.exec(appURL);
 
-                BandwidthMonitor.getInstance().serverURL = result.server;
-            
-                var protocol:String = "rtmp";
-                var uri:String = appURL + "/" + intMeetingId;
-            
-                if (BBB.initConnectionManager().isTunnelling) {
-                    bbbAppsUrl = "rtmpt://" + result.server + "/" + result.app + "/" + intMeetingId;
-                } else {
-                    bbbAppsUrl = "rtmp://" + result.server + ":1935/" + result.app + "/" + intMeetingId;
+								var pattern:RegExp = /(?P<protocol>.+):\/\/(?P<server>.+)\/(?P<app>.+)/;
+								var result:Array = pattern.exec(appURL);
+
+								var useRTMPS: Boolean = result.protocol == ConnUtil.RTMPS;
+								
+								if (BBB.initConnectionManager().isTunnelling) {
+									var tunnelProtocol: String = ConnUtil.RTMPT;
+									if (useRTMPS) {
+										_netConnection.proxyType = ConnUtil.PROXY_NONE;
+										tunnelProtocol = ConnUtil.RTMPS;
+									}
+								
+									bbbAppsUrl = tunnelProtocol + "://" + result.server + "/" + result.app + "/" + intMeetingId;
+									LOGGER.debug("BBB APPS CONNECT tunnel = TRUE " + "url=" +  bbbAppsUrl);
+								} else {
+									var nativeProtocol: String = ConnUtil.RTMP;
+									if (useRTMPS) {
+										_netConnection.proxyType = ConnUtil.PROXY_BEST;
+										nativeProtocol = ConnUtil.RTMPS;
+									}
+									bbbAppsUrl = nativeProtocol + "://" + result.server + "/" + result.app + "/" + intMeetingId;
+									LOGGER.debug("BBB APPS CONNECT tunnel = FALSE " + "url=" +  bbbAppsUrl);
                 }
 
                 var logData:Object = UsersUtil.initLogData();
@@ -443,15 +458,14 @@ package org.bigbluebutton.main.model.users
                                         recorded, extUserId,
                                         intUserId, muteOnStart,
                                         guest, authToken);
-                   
             } catch(e:ArgumentError) {
                 // Invalid parameters.
                 switch (e.errorID) {
                     case 2004 :
-                        LOGGER.debug("Error! Invalid server location: {0}", [uri]);
+                        LOGGER.debug("Error! Invalid server location: {0}", [bbbAppsUrl]);
                         break;
                     default :
-                        LOGGER.debug("UNKNOWN Error! Invalid server location: {0}", [uri]);
+                        LOGGER.debug("UNKNOWN Error! Invalid server location: {0}", [bbbAppsUrl]);
                        break;
                 }
             }
@@ -546,7 +560,7 @@ package org.bigbluebutton.main.model.users
                 
                 case "NetConnection.Connect.NetworkChange":
                     numNetworkChangeCount++;
-                    if (numNetworkChangeCount % 20 == 0) {
+                    if (numNetworkChangeCount % 2 == 0) {
                         logData.message = "Detected network change on bbb-apps";
                         logData.numNetworkChangeCount = numNetworkChangeCount;
                         LOGGER.info(JSON.stringify(logData));

@@ -35,13 +35,23 @@ object MsgBuilder {
     BbbCommonEnvCoreMsg(envelope, req)
   }
 
+  def buildEjectDuplicateUserRequestToAkkaApps(meetingId: String, intUserId: String, name: String, extUserId: String): BbbCommonEnvCoreMsg = {
+    val routing = collection.immutable.HashMap("sender" -> "bbb-web")
+    val envelope = BbbCoreEnvelope(EjectDuplicateUserReqMsg.NAME, routing)
+    val header = BbbCoreHeaderWithMeetingId(EjectDuplicateUserReqMsg.NAME, meetingId)
+    val body = EjectDuplicateUserReqMsgBody(meetingId = meetingId, intUserId = intUserId,
+      name = name, extUserId = extUserId)
+    val req = EjectDuplicateUserReqMsg(header, body)
+    BbbCommonEnvCoreMsg(envelope, req)
+  }
+
   def buildRegisterUserRequestToAkkaApps(msg: RegisterUser): BbbCommonEnvCoreMsg = {
     val routing = collection.immutable.HashMap("sender" -> "bbb-web")
     val envelope = BbbCoreEnvelope(RegisterUserReqMsg.NAME, routing)
     val header = BbbCoreHeaderWithMeetingId(RegisterUserReqMsg.NAME, msg.meetingId)
     val body = RegisterUserReqMsgBody(meetingId = msg.meetingId, intUserId = msg.intUserId,
       name = msg.name, role = msg.role, extUserId = msg.extUserId, authToken = msg.authToken,
-      avatarURL = msg.avatarURL, guest = msg.guest, authed = msg.authed)
+      avatarURL = msg.avatarURL, guest = msg.guest, authed = msg.authed, guestStatus = msg.guestStatus)
     val req = RegisterUserReqMsg(header, body)
     BbbCommonEnvCoreMsg(envelope, req)
   }
@@ -92,7 +102,7 @@ object MsgBuilder {
   }
 
   def generatePresentationPages(presId: String, numPages: Int, presBaseUrl: String): scala.collection.immutable.Map[String, PageVO] = {
-    var pages = new scala.collection.mutable.HashMap[String, PageVO]
+    val pages = new scala.collection.mutable.HashMap[String, PageVO]
     for (i <- 1 to numPages) {
       val id = presId + "/" + i
       val num = i

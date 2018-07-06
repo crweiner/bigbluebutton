@@ -1,11 +1,17 @@
 package org.bigbluebutton.common2.msgs
 
+object EjectDuplicateUserReqMsg { val NAME = "EjectDuplicateUserReqMsg" }
+case class EjectDuplicateUserReqMsg(header: BbbCoreHeaderWithMeetingId,
+                              body: EjectDuplicateUserReqMsgBody) extends BbbCoreMsg
+case class EjectDuplicateUserReqMsgBody(meetingId: String, intUserId: String, name: String,
+                                  extUserId: String)
+
 object RegisterUserReqMsg { val NAME = "RegisterUserReqMsg" }
 case class RegisterUserReqMsg(header: BbbCoreHeaderWithMeetingId,
                               body: RegisterUserReqMsgBody) extends BbbCoreMsg
 case class RegisterUserReqMsgBody(meetingId: String, intUserId: String, name: String, role: String,
                                   extUserId: String, authToken: String, avatarURL: String,
-                                  guest: Boolean, authed: Boolean)
+                                  guest: Boolean, authed: Boolean, guestStatus: String)
 
 object UserRegisteredRespMsg { val NAME = "UserRegisteredRespMsg" }
 case class UserRegisteredRespMsg(header: BbbCoreHeaderWithMeetingId,
@@ -78,14 +84,12 @@ object GetRecordingStatusReqMsg { val NAME = "GetRecordingStatusReqMsg" }
 case class GetRecordingStatusReqMsg(header: BbbClientMsgHeader, body: GetRecordingStatusReqMsgBody) extends StandardMsg
 case class GetRecordingStatusReqMsgBody(requestedBy: String)
 
-
 /**
-  * Sent by user as response to get recording mark.
+  * Sent to user as response to get recording mark.
   */
 object GetRecordingStatusRespMsg { val NAME = "GetRecordingStatusRespMsg" }
 case class GetRecordingStatusRespMsg(header: BbbClientMsgHeader, body: GetRecordingStatusRespMsgBody) extends BbbCoreMsg
 case class GetRecordingStatusRespMsgBody(recording: Boolean, requestedBy: String)
-
 
 /**
   * Sent by user to start recording mark.
@@ -100,6 +104,34 @@ case class SetRecordingStatusCmdMsgBody(recording: Boolean, setBy: String)
 object RecordingStatusChangedEvtMsg { val NAME = "RecordingStatusChangedEvtMsg" }
 case class RecordingStatusChangedEvtMsg(header: BbbClientMsgHeader, body: RecordingStatusChangedEvtMsgBody) extends BbbCoreMsg
 case class RecordingStatusChangedEvtMsgBody(recording: Boolean, setBy: String)
+
+/**
+  * Sent by user to update webcamsOnlyForModerator meeting property.
+  */
+object UpdateWebcamsOnlyForModeratorCmdMsg { val NAME = "UpdateWebcamsOnlyForModeratorCmdMsg" }
+case class UpdateWebcamsOnlyForModeratorCmdMsg(header: BbbClientMsgHeader, body: UpdateWebcamsOnlyForModeratorCmdMsgBody) extends StandardMsg
+case class UpdateWebcamsOnlyForModeratorCmdMsgBody(webcamsOnlyForModerator: Boolean, setBy: String)
+
+/**
+  * Sent by user to get the value of webcamsOnlyForModerator mark.
+  */
+object GetWebcamsOnlyForModeratorReqMsg { val NAME = "GetWebcamsOnlyForModeratorReqMsg" }
+case class GetWebcamsOnlyForModeratorReqMsg(header: BbbClientMsgHeader, body: GetWebcamsOnlyForModeratorReqMsgBody) extends StandardMsg
+case class GetWebcamsOnlyForModeratorReqMsgBody(requestedBy: String)
+
+/**
+  * Sent to user as response to get webcamsOnlyForModerator mark.
+  */
+object GetWebcamsOnlyForModeratorRespMsg { val NAME = "GetWebcamsOnlyForModeratorRespMsg" }
+case class GetWebcamsOnlyForModeratorRespMsg(header: BbbClientMsgHeader, body: GetWebcamsOnlyForModeratorRespMsgBody) extends BbbCoreMsg
+case class GetWebcamsOnlyForModeratorRespMsgBody(webcamsOnlyForModerator: Boolean, requestedBy: String)
+
+/**
+  * Sent to all users about webcam only for moderator value.
+  */
+object WebcamsOnlyForModeratorChangedEvtMsg { val NAME = "WebcamsOnlyForModeratorChangedEvtMsg" }
+case class WebcamsOnlyForModeratorChangedEvtMsg(header: BbbClientMsgHeader, body: WebcamsOnlyForModeratorChangedEvtMsgBody) extends BbbCoreMsg
+case class WebcamsOnlyForModeratorChangedEvtMsgBody(webcamsOnlyForModerator: Boolean, setBy: String)
 
 /**
   * Sent by user to get status of screenshare (meant for late joiners).
@@ -127,7 +159,7 @@ case class UserEmojiChangedEvtMsgBody(userId: String, emoji: String)
   */
 object UserEjectedFromMeetingEvtMsg { val NAME = "UserEjectedFromMeetingEvtMsg" }
 case class UserEjectedFromMeetingEvtMsg(header: BbbClientMsgHeader, body: UserEjectedFromMeetingEvtMsgBody) extends StandardMsg
-case class UserEjectedFromMeetingEvtMsgBody(userId: String, ejectedBy: String, reason: String)
+case class UserEjectedFromMeetingEvtMsgBody(userId: String, ejectedBy: String, reason: String, reasonCode: String)
 
 object AssignPresenterReqMsg { val NAME = "AssignPresenterReqMsg"}
 case class AssignPresenterReqMsg(header: BbbClientMsgHeader, body: AssignPresenterReqMsgBody) extends StandardMsg
@@ -236,7 +268,9 @@ object UserJoinMeetingAfterReconnectReqMsg { val NAME = "UserJoinMeetingAfterRec
 case class UserJoinMeetingAfterReconnectReqMsg(header: BbbClientMsgHeader, body: UserJoinMeetingAfterReconnectReqMsgBody) extends StandardMsg
 case class UserJoinMeetingAfterReconnectReqMsgBody(userId: String, authToken: String)
 
-
+/**
+  * Sent from bbb-apps when user disconnects from Red5.
+  */
 object UserLeaveReqMsg { val NAME = "UserLeaveReqMsg" }
 case class UserLeaveReqMsg(header: BbbClientMsgHeader, body: UserLeaveReqMsgBody) extends StandardMsg
 case class UserLeaveReqMsgBody(userId: String, sessionId: String)
@@ -310,3 +344,26 @@ case class RemoveUserFromPresenterGroupCmdMsgBody(userId: String, requesterId: S
 object UserRemovedFromPresenterGroupEvtMsg { val NAME = "UserRemovedFromPresenterGroupEvtMsg" }
 case class UserRemovedFromPresenterGroupEvtMsg(header: BbbClientMsgHeader, body: UserRemovedFromPresenterGroupEvtMsgBody) extends StandardMsg
 case class UserRemovedFromPresenterGroupEvtMsgBody(userId: String, requesterId: String)
+
+/**
+  * Sent from client to request the presenter group of a meeting.
+  */
+object GetPresenterGroupReqMsg { val NAME = "GetPresenterGroupReqMsg" }
+case class GetPresenterGroupReqMsg(header: BbbClientMsgHeader, body: GetPresenterGroupReqMsgBody) extends StandardMsg
+case class GetPresenterGroupReqMsgBody(requesterId: String)
+
+/**
+  * Sent to all clients about the members of the presenter group of a meeting
+  */
+object GetPresenterGroupRespMsg { val NAME = "GetPresenterGroupRespMsg" }
+case class GetPresenterGroupRespMsg(header: BbbClientMsgHeader, body: GetPresenterGroupRespMsgBody) extends StandardMsg
+case class GetPresenterGroupRespMsgBody(presenterGroup: Vector[String], requesterId: String)
+
+
+object UserInactivityAuditMsg { val NAME = "UserInactivityAuditMsg" }
+case class UserInactivityAuditMsg(header: BbbClientMsgHeader, body: UserInactivityAuditMsgBody) extends StandardMsg
+case class UserInactivityAuditMsgBody(meetingId: String, responseDuration: Long)
+
+object UserInactivityAuditResponseMsg { val NAME = "UserInactivityAuditResponseMsg" }
+case class UserInactivityAuditResponseMsg(header: BbbClientMsgHeader, body: UserInactivityAuditResponseMsgBody) extends StandardMsg
+case class UserInactivityAuditResponseMsgBody(userId: String)

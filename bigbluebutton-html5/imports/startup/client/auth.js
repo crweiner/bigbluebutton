@@ -1,12 +1,11 @@
 import Auth from '/imports/ui/services/auth';
-import { logClient } from '/imports/ui/services/api';
+import { log } from '/imports/ui/services/api';
 
 // disconnected and trying to open a new connection
 const STATUS_CONNECTING = 'connecting';
 
 export function joinRouteHandler(nextState, replace, callback) {
   const { sessionToken } = nextState.location.query;
-  console.log(`sessionToken=${sessionToken}`);
 
   if (!nextState || !sessionToken) {
     replace({ pathname: '/error/404' });
@@ -19,7 +18,9 @@ export function joinRouteHandler(nextState, replace, callback) {
   fetch(url)
     .then(response => response.json())
     .then((data) => {
-      const { meetingID, internalUserID, authToken, logoutUrl } = data.response;
+      const {
+        meetingID, internalUserID, authToken, logoutUrl,
+      } = data.response;
 
       Auth.set(meetingID, internalUserID, authToken, logoutUrl, sessionToken);
       replace({ pathname: '/' });
@@ -36,9 +37,6 @@ export function logoutRouteHandler(nextState, replace) {
         protocolPattern.test(logoutURL) ?
           logoutURL :
           `http://${logoutURL}`;
-    })
-    .catch(() => {
-      replace({ pathname: '/error/500' });
     });
 }
 
@@ -89,17 +87,13 @@ export function authenticatedRouteHandler(nextState, replace, callback) {
   Auth.authenticate()
     .then(callback)
     .catch((reason) => {
-      logClient('error', {
-        error: reason,
-        method: 'authenticatedRouteHandler',
-        credentialsSnapshot,
-      });
+      log('error', reason);
 
       // make sure users who did not connect are not added to the meeting
       // do **not** use the custom call - it relies on expired data
       Meteor.call('userLogout', credentialsSnapshot, (error) => {
         if (error) {
-          console.error('error');
+          throw new Error(error);
         }
       });
 

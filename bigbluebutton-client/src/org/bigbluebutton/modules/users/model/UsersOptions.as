@@ -35,10 +35,10 @@ package org.bigbluebutton.modules.users.model {
 		public var enableSettingsButton:Boolean = true;
 
 		[Bindable]
-		public var moderatorUnmute:Boolean = true;
+		public var enableGuestUI:Boolean = false;
 
 		[Bindable]
-		public var enableGuestUI:Boolean = false;
+		public var guestSoftMode:Boolean = false;
 
 		public function UsersOptions() {
 			name = "UsersModule";

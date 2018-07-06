@@ -18,6 +18,7 @@
 
 package org.bigbluebutton.api;
 
+import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,8 +40,6 @@ import org.bigbluebutton.api.messaging.converters.messages.DestroyMeetingMessage
 import org.bigbluebutton.api.messaging.converters.messages.EndMeetingMessage;
 import org.bigbluebutton.api.messaging.messages.*;
 import org.bigbluebutton.api2.IBbbWebApiGWApp;
-import org.bigbluebutton.common.messages.Constants;
-import org.bigbluebutton.common.messages.SendStunTurnInfoReplyMessage;
 import org.bigbluebutton.presentation.PresentationUrlDownloadService;
 import org.bigbluebutton.web.services.RegisteredUserCleanupTimerTask;
 import org.bigbluebutton.web.services.turn.StunServer;
@@ -259,6 +258,7 @@ public class MeetingService implements MessageListener {
     logData.put("name", m.getName());
     logData.put("duration", m.getDuration());
     logData.put("isBreakout", m.isBreakout());
+    logData.put("webcamsOnlyForModerator", m.getWebcamsOnlyForModerator());
     logData.put("record", m.isRecord());
     logData.put("event", "create_meeting");
     logData.put("description", "Create meeting.");
@@ -277,7 +277,8 @@ public class MeetingService implements MessageListener {
       m.isBreakout(), m.getSequence(), m.getMetadata(), m.getGuestPolicy(), m.getWelcomeMessageTemplate(),
       m.getWelcomeMessage(), m.getModeratorOnlyMessage(), m.getDialNumber(), m.getMaxUsers(),
       m.getMaxInactivityTimeoutMinutes(), m.getWarnMinutesBeforeMax(),
-      m.getMeetingExpireIfNoUserJoinedInMinutes(), m.getmeetingExpireWhenLastUserLeftInMinutes());
+      m.getMeetingExpireIfNoUserJoinedInMinutes(), m.getmeetingExpireWhenLastUserLeftInMinutes(),
+            m.getMuteOnStart());
 
   }
 
@@ -290,9 +291,34 @@ public class MeetingService implements MessageListener {
   }
 
   private void processRegisterUser(RegisterUser message) {
+    Meeting m = getMeeting(message.meetingID);
+    if (m != null) {
+      User prevUser = m.getUserWithExternalId(message.externUserID);
+      if (prevUser != null) {
+        Map<String, Object> logData = new HashMap<String, Object>();
+        logData.put("meetingId", m.getInternalId());
+        logData.put("externalMeetingId", m.getExternalId());
+        logData.put("name", m.getName());
+        logData.put("extUserId", prevUser.getExternalUserId());
+        logData.put("intUserId", prevUser.getInternalUserId());
+        logData.put("username", prevUser.getFullname());
+        logData.put("event", "duplicate_user_with_external_userid");
+        logData.put("description", "Duplicate user with external userid.");
+
+        Gson gson = new Gson();
+        String logStr = gson.toJson(logData);
+        log.info("Duplicate user with same externalUserId: data={}", logStr);
+
+        gw.ejectDuplicateUser(message.meetingID,
+                prevUser.getInternalUserId(), prevUser.getFullname(),
+                prevUser.getExternalUserId());
+      }
+
+    }
     gw.registerUser(message.meetingID,
       message.internalUserId, message.fullname, message.role,
-      message.externUserID, message.authToken, message.avatarURL, message.guest, message.authed);
+      message.externUserID, message.authToken, message.avatarURL, message.guest,
+            message.authed, message.guestStatus);
   }
 
   public Meeting getMeeting(String meetingId) {
@@ -380,6 +406,8 @@ public class MeetingService implements MessageListener {
   public void updateRecordings(List<String> idList, Map<String, String> metaParams) {
     recordingService.updateMetaParams(idList, metaParams);
   }
+
+
 
   public void processRecording(String meetingId) {
     recordingService.startIngestAndProcessing(meetingId);
@@ -697,50 +725,6 @@ public class MeetingService implements MessageListener {
     this.presDownloadService = presDownloadService;
   }
 
-  private void processStunTurnInfoRequested(StunTurnInfoRequested message) {
-    Set<StunServer> stuns = stunTurnService.getStunServers();
-    log.info("\nhere are the stuns:");
-    for (StunServer s : stuns) {
-      log.info("a stun: " + s.url);
-    }
-    Set<TurnEntry> turns = stunTurnService.getStunAndTurnServersFor(message.internalUserId);
-
-    log.info("\nhere are the (" + turns.size() + ") turns for internalUserId:" + message.internalUserId);
-    for (TurnEntry t : turns) {
-      log.info("a org.bigbluebutton.web.services.turn: " + t.url + "username/pass=" + t.username + '/'
-        + t.password);
-    }
-
-    ArrayList<String> stunsArrayList = new ArrayList<String>();
-    Iterator<StunServer> stunsIter = stuns.iterator();
-
-    while (stunsIter.hasNext()) {
-      StunServer aStun = (StunServer) stunsIter.next();
-      if (aStun != null) {
-        stunsArrayList.add(aStun.url);
-      }
-    }
-
-    ArrayList<Map<String, Object>> turnsArrayList = new ArrayList<Map<String, Object>>();
-    Iterator<TurnEntry> turnsIter = turns.iterator();
-    while (turnsIter.hasNext()) {
-      TurnEntry te = (TurnEntry) turnsIter.next();
-      if (null != te) {
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put(Constants.USERNAME, te.username);
-        map.put(Constants.URL, te.url);
-        map.put(Constants.TTL, te.ttl);
-        map.put(Constants.PASSWORD, te.password);
-
-        turnsArrayList.add(map);
-      }
-    }
-
-    SendStunTurnInfoReplyMessage msg = new SendStunTurnInfoReplyMessage(message.meetingId,
-      message.internalUserId,stunsArrayList, turnsArrayList);
-    gw.sendStunTurnInfoReply(msg);
-  }
-
   public void userJoinedVoice(UserJoinedVoice message) {
     Meeting m = getMeeting(message.meetingId);
     if (m != null) {
@@ -748,6 +732,14 @@ public class MeetingService implements MessageListener {
       if (user != null) {
         user.setVoiceJoined(true);
         return;
+      } else {
+        if (message.userId.startsWith("v_")) {
+          // A dial-in user joined the meeting. Dial-in users by convention has userId that starts with "v_".
+          User vuser = new User(message.userId, message.userId,
+                  message.name, "DIAL-IN-USER", "no-avatar-url", true, "VOICE-USER");
+          vuser.setVoiceJoined(true);
+          m.userJoined(vuser);
+        }
       }
       return;
     }
@@ -758,7 +750,13 @@ public class MeetingService implements MessageListener {
     if (m != null) {
       User user = m.getUserById(message.userId);
       if (user != null) {
-        user.setVoiceJoined(false);
+        if (message.userId.startsWith("v_")) {
+          // A dial-in user left the meeting. Dial-in users by convention has userId that starts with "v_".
+          User vuser = m.userLeft(message.userId);
+        } else {
+          user.setVoiceJoined(false);
+        }
+
         return;
       }
       return;
@@ -849,19 +847,42 @@ public class MeetingService implements MessageListener {
           processEndMeeting((EndMeeting) message);
         } else if (message instanceof RegisterUser) {
           processRegisterUser((RegisterUser) message);
-        } else if (message instanceof StunTurnInfoRequested) {
-          processStunTurnInfoRequested((StunTurnInfoRequested) message);
         } else if (message instanceof CreateBreakoutRoom) {
           processCreateBreakoutRoom((CreateBreakoutRoom) message);
         } else if (message instanceof PresentationUploadToken) {
           processPresentationUploadToken((PresentationUploadToken) message);
         } else if (message instanceof GuestStatusChangedEventMsg) {
           processGuestStatusChangedEventMsg((GuestStatusChangedEventMsg) message);
+        } else if (message instanceof GuestPolicyChanged) {
+          processGuestPolicyChanged((GuestPolicyChanged) message);
+        } else if (message instanceof RecordChapterBreak) {
+          processRecordingChapterBreak((RecordChapterBreak) message);
+        } else if (message instanceof MakePresentationDownloadableMsg) {
+          processMakePresentationDownloadableMsg((MakePresentationDownloadableMsg) message);
         }
       }
     };
 
     runExec.execute(task);
+  }
+
+  public void processGuestPolicyChanged(GuestPolicyChanged msg) {
+    Meeting m = getMeeting(msg.meetingId);
+    if (m != null) {
+      m.setGuestPolicy(msg.policy);
+    }
+  }
+
+  public void processRecordingChapterBreak(RecordChapterBreak msg) {
+    recordingService.kickOffRecordingChapterBreak(msg.meetingId, msg.timestamp);
+  }
+
+  private void processMakePresentationDownloadableMsg(MakePresentationDownloadableMsg msg) {
+    recordingService.processMakePresentationDownloadableMsg(msg);
+  }
+
+  public File getDownloadablePresentationFile(String meetingId, String presId, String presFilename) {
+    return recordingService.getDownloadablePresentationFile(meetingId, presId, presFilename);
   }
 
   public void start() {

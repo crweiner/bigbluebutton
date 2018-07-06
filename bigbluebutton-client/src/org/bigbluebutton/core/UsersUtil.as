@@ -33,7 +33,6 @@ package org.bigbluebutton.core
   import org.bigbluebutton.core.vo.LockSettingsVO;
   import org.bigbluebutton.main.model.options.LockOptions;
   import org.bigbluebutton.main.model.users.BreakoutRoom;
-  import org.bigbluebutton.util.SessionTokenUtil;
   
   public class UsersUtil
   {
@@ -71,12 +70,16 @@ package org.bigbluebutton.core
       return false;
     }
     
-	public static function setUserEjected():void {
-    LiveMeeting.inst().me.ejectedFromMeeting = true;
+	public static function setUserEjected(reasonCode: String):void {
+    LiveMeeting.inst().me.ejectedFromMeeting(reasonCode);
 	}
 	
 	public static function isUserEjected():Boolean {
-    return LiveMeeting.inst().me.ejectedFromMeeting;
+    return LiveMeeting.inst().me.hasBeenEjected();
+	}
+	
+	public static function getEjectReason():String {
+		return LiveMeeting.inst().me.getEjectReasonCode();
 	}
 	
   public static function isRecorded():Boolean {
@@ -313,8 +316,7 @@ package org.bigbluebutton.core
     }
     
     public static function getUserSession():String {
-        var sessionUtil:SessionTokenUtil = new SessionTokenUtil()
-        return sessionUtil.getSessionToken();
+        return BBB.getQueryStringParameters().getSessionToken();
     }
     
     public static function applyLockSettings():void {
@@ -331,16 +333,18 @@ package org.bigbluebutton.core
     }
     
     public static function lockSettingsNotInitialized():void {
-      var lockOptions:LockOptions = Options.getOptions(LockOptions) as LockOptions;
-      var lockSettings:LockSettingsVO = new LockSettingsVO(lockOptions.disableCam, lockOptions.disableMic,
-        lockOptions.disablePrivateChat, lockOptions.disablePublicChat,
-        lockOptions.lockedLayout, lockOptions.lockOnJoin,
-        lockOptions.lockOnJoinConfigurable);
-      var event:LockControlEvent = new LockControlEvent(LockControlEvent.SAVE_LOCK_SETTINGS);
-      event.payload = lockSettings.toMap();
-      
-      var dispatcher:Dispatcher = new Dispatcher();
-      dispatcher.dispatchEvent(event);
+      if (amIModerator()) {
+        var lockOptions:LockOptions = Options.getOptions(LockOptions) as LockOptions;
+        var lockSettings:LockSettingsVO = new LockSettingsVO(lockOptions.disableCam, lockOptions.disableMic,
+          lockOptions.disablePrivateChat, lockOptions.disablePublicChat,
+          lockOptions.lockedLayout, lockOptions.lockOnJoin,
+          lockOptions.lockOnJoinConfigurable);
+        var event:LockControlEvent = new LockControlEvent(LockControlEvent.SAVE_LOCK_SETTINGS);
+        event.payload = lockSettings.toMap();
+        
+        var dispatcher:Dispatcher = new Dispatcher();
+        dispatcher.dispatchEvent(event);
+      }
     }
     
     public static function getBreakoutRoom(id: String): BreakoutRoom {

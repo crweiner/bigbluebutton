@@ -19,7 +19,6 @@
 package org.bigbluebutton.modules.videoconf.business
 {
 	import com.asfusion.mate.events.Dispatcher;
-	
 	import flash.events.AsyncErrorEvent;
 	import flash.events.IOErrorEvent;
 	import flash.events.NetStatusEvent;
@@ -29,34 +28,32 @@ package org.bigbluebutton.modules.videoconf.business
 	import flash.media.H264VideoStreamSettings;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
-	
+	import flash.net.ObjectEncoding;
 	import org.as3commons.logging.api.ILogger;
 	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.core.BBB;
 	import org.bigbluebutton.core.Options;
 	import org.bigbluebutton.core.UsersUtil;
 	import org.bigbluebutton.core.managers.ReconnectionManager;
-	import org.bigbluebutton.main.api.JSLog;
+	import org.bigbluebutton.core.model.LiveMeeting;
 	import org.bigbluebutton.main.events.BBBEvent;
 	import org.bigbluebutton.modules.videoconf.events.ConnectedEvent;
 	import org.bigbluebutton.modules.videoconf.events.StartBroadcastEvent;
 	import org.bigbluebutton.modules.videoconf.events.StopBroadcastEvent;
 	import org.bigbluebutton.modules.videoconf.model.VideoConfOptions;
-
+	import org.bigbluebutton.util.ConnUtil;
 	
 	public class VideoProxy
 	{	
 		private static const LOGGER:ILogger = getClassLogger(VideoProxy);
 		
 		public var videoOptions:VideoConfOptions;
-		
 		private var nc:NetConnection;
-		private var _url:String;
 		private var camerasPublishing:Object = new Object();
 		private var reconnect:Boolean = false;
 		private var reconnecting:Boolean = false;
 		private var dispatcher:Dispatcher = new Dispatcher();
-
+		private var videoConnUrl: String;
 		private var numNetworkChangeCount:int = 0;
 		
 		private function parseOptions():void {
@@ -64,12 +61,10 @@ package org.bigbluebutton.modules.videoconf.business
 			videoOptions.parseOptions();	
 		}
 		
-		public function VideoProxy(url:String)
+		public function VideoProxy()
 		{
-      		_url = url;
 			parseOptions();			
 			nc = new NetConnection();
-			nc.proxyType = "best";
 			nc.client = this;
 			nc.addEventListener(AsyncErrorEvent.ASYNC_ERROR, onAsyncError);
 			nc.addEventListener(IOErrorEvent.IO_ERROR, onIOError);
@@ -81,9 +76,41 @@ package org.bigbluebutton.modules.videoconf.business
 			reconnect = connect;
 		}
 		
-	    public function connect():void {
-	      nc.connect(_url, UsersUtil.getInternalMeetingID(), UsersUtil.getMyUserID());
-	    }
+		public function connect():void {
+				var options: VideoConfOptions = Options.getOptions(VideoConfOptions) as VideoConfOptions;
+				var pattern:RegExp = /(?P<protocol>.+):\/\/(?P<server>.+)\/(?P<app>.+)/;
+				var result:Array = pattern.exec(options.uri);
+				
+				
+				var useRTMPS: Boolean = result.protocol == ConnUtil.RTMPS;
+				if (BBB.initConnectionManager().isTunnelling) {
+					var tunnelProtocol: String = ConnUtil.RTMPT;
+				
+					if (useRTMPS) {
+						nc.proxyType = ConnUtil.PROXY_NONE;
+						tunnelProtocol = ConnUtil.RTMPS;
+					}
+				
+					videoConnUrl = tunnelProtocol + "://" + result.server + "/" + result.app;
+					LOGGER.debug("VIDEO CONNECT tunnel = TRUE " + "url=" +  videoConnUrl);
+				} else {
+					var nativeProtocol: String = ConnUtil.RTMP;
+					if (useRTMPS) {
+						nc.proxyType = ConnUtil.PROXY_BEST;
+						nativeProtocol = ConnUtil.RTMPS;
+					}
+				
+					videoConnUrl = nativeProtocol + "://" + result.server + "/" + result.app;
+					LOGGER.debug("VIDEO CONNECT tunnel = FALSE " + "url=" +  videoConnUrl);
+				}
+				
+				videoConnUrl = videoConnUrl + "/" + UsersUtil.getInternalMeetingID();
+				var authToken: String = LiveMeeting.inst().me.authToken;
+
+				nc.objectEncoding = flash.net.ObjectEncoding.AMF3;
+				nc.connect(videoConnUrl, UsersUtil.getInternalMeetingID(), 
+						UsersUtil.getMyUserID(), authToken);
+		}
 	    
 		private function onAsyncError(event:AsyncErrorEvent):void{
 			var logData:Object = UsersUtil.initLogData();
@@ -112,7 +139,7 @@ package org.bigbluebutton.modules.videoconf.business
     
 		private function onNetStatus(event:NetStatusEvent):void{
 
-			LOGGER.debug("[{0}] for [{1}]", [event.info.code, _url]);
+			LOGGER.debug("[{0}] for [{1}]", [event.info.code, videoConnUrl]);
 			var logData:Object = UsersUtil.initLogData();
 			logData.tags = ["webcam"];
 			logData.user.eventCode = event.info.code + "[reconnecting=" + reconnecting + ",reconnect=" + reconnect + "]";
@@ -169,14 +196,14 @@ package org.bigbluebutton.modules.videoconf.business
 					break;		
 				case "NetConnection.Connect.NetworkChange":
 					numNetworkChangeCount++;
-					if (numNetworkChangeCount % 20 == 0) {
+					if (numNetworkChangeCount % 2 == 0) {
 						logData.message = "Detected network change on bbb-video";
 						logData.numNetworkChangeCount = numNetworkChangeCount;
 						LOGGER.info(JSON.stringify(logData));
 					}
 					break;
         		default:
-					LOGGER.debug("[{0}] for [{1}]", [event.info.code, _url]);
+					LOGGER.debug("[{0}] for [{1}]", [event.info.code, videoConnUrl]);
 					break;
 			}
 		}

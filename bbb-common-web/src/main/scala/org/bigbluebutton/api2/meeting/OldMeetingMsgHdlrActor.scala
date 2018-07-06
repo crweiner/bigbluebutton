@@ -7,8 +7,6 @@ import org.bigbluebutton.api.messaging.messages._
 import org.bigbluebutton.api2.bus.OldMessageReceivedGW
 import org.bigbluebutton.common2.msgs._
 
-import collection.JavaConverters._
-
 
 object OldMeetingMsgHdlrActor {
   def props(olgMsgGW: OldMessageReceivedGW): Props =
@@ -41,9 +39,19 @@ class OldMeetingMsgHdlrActor(val olgMsgGW: OldMessageReceivedGW)
       case m: CreateBreakoutRoomSysCmdMsg => handleCreateBreakoutRoomSysCmdMsg(m)
       case m: PresentationUploadTokenSysPubMsg => handlePresentationUploadTokenSysPubMsg(m)
       case m: GuestsWaitingApprovedEvtMsg => handleGuestsWaitingApprovedEvtMsg(m)
-
+      case m: GuestPolicyChangedEvtMsg => handleGuestPolicyChangedEvtMsg(m)
+      case m: RecordingChapterBreakSysMsg => handleRecordingChapterBreakSysMsg(m)
+      case m: SetPresentationDownloadableEvtMsg => handleSetPresentationDownloadableEvtMsg(m)
       case _ => log.error("***** Cannot handle " + msg.envelope.name)
     }
+  }
+
+  def handleGuestPolicyChangedEvtMsg(msg: GuestPolicyChangedEvtMsg): Unit = {
+    olgMsgGW.handle(new GuestPolicyChanged(msg.header.meetingId, msg.body.policy))
+  }
+
+  def handleRecordingChapterBreakSysMsg(msg: RecordingChapterBreakSysMsg): Unit = {
+    olgMsgGW.handle(new RecordChapterBreak(msg.body.meetingId, msg.body.timestamp))
   }
 
   def handleMeetingCreatedEvtMsg(msg: MeetingCreatedEvtMsg): Unit = {
@@ -106,7 +114,7 @@ class OldMeetingMsgHdlrActor(val olgMsgGW: OldMessageReceivedGW)
     if (msg.body.listenOnly) {
       olgMsgGW.handle(new UserListeningOnly(msg.header.meetingId, msg.body.intId, msg.body.listenOnly))
     } else {
-      olgMsgGW.handle(new UserJoinedVoice(msg.header.meetingId, msg.body.intId))
+      olgMsgGW.handle(new UserJoinedVoice(msg.header.meetingId, msg.body.intId, msg.body.callerName))
     }
   }
 
@@ -132,4 +140,14 @@ class OldMeetingMsgHdlrActor(val olgMsgGW: OldMessageReceivedGW)
     val m = new GuestStatusChangedEventMsg(msg.header.meetingId, u)
     olgMsgGW.handle(m)
   }
+
+  def handleSetPresentationDownloadableEvtMsg(msg: SetPresentationDownloadableEvtMsg): Unit = {
+    val meetingId = msg.header.meetingId
+    val presId = msg.body.presentationId
+    val downloadable = msg.body.downloadable
+    val presFilename = msg.body.presFilename
+    val m = new MakePresentationDownloadableMsg(meetingId, presId, presFilename, downloadable)
+    olgMsgGW.handle(m)
+  }
+
 }

@@ -30,10 +30,10 @@ package org.bigbluebutton.main.model.users
   
   import org.as3commons.logging.api.ILogger;
   import org.as3commons.logging.api.getClassLogger;
+	import org.bigbluebutton.core.BBB;
   import org.bigbluebutton.core.UsersUtil;
   import org.bigbluebutton.main.events.MeetingNotFoundEvent;
   import org.bigbluebutton.main.model.users.events.ConnectionFailedEvent;
-  import org.bigbluebutton.util.QueryStringParameters;
   
   public class JoinService
   {  
@@ -50,10 +50,8 @@ package org.bigbluebutton.main.model.users
     }
     
     public function load(url:String):void {
-      var p:QueryStringParameters = new QueryStringParameters();
-      p.collectParameters();
-      var sessionToken:String = p.getParameter("sessionToken");
-      
+			var sessionToken:String = BBB.getQueryStringParameters().getSessionToken();
+			
       reqVars.sessionToken = sessionToken;
       
       var date:Date = new Date();
@@ -118,7 +116,7 @@ package org.bigbluebutton.main.model.users
     
     private function handleComplete(e:Event):void {			
       var result:Object = JSON.parse(e.target.data);
-      
+
       var logData:Object = UsersUtil.initLogData();
       logData.tags = ["initialization"];
       
@@ -150,7 +148,6 @@ package org.bigbluebutton.main.model.users
         
         apiResponse.record = (result.response.record.toUpperCase() == "TRUE");
         apiResponse.allowStartStopRecording = result.response.allowStartStopRecording;
-        apiResponse.webcamsOnlyForModerator = result.response.webcamsOnlyForModerator;
 
 		apiResponse.bannerColor = result.response.bannerColor;
 		apiResponse.bannerText = result.response.bannerText;
@@ -160,9 +157,10 @@ package org.bigbluebutton.main.model.users
 
         apiResponse.welcome = result.response.welcome;
         apiResponse.logoutUrl = processLogoutUrl(result.response);
-		apiResponse.logoutTimer = result.response.logoutTimer;
+        apiResponse.logoutTimer = result.response.logoutTimer;
         apiResponse.defaultLayout = result.response.defaultLayout;
-        apiResponse.avatarURL = result.response.avatarURL
+        apiResponse.avatarURL = result.response.avatarURL;
+        
         apiResponse.customdata = new Object();
         
         if (result.response.customdata) {
@@ -180,7 +178,11 @@ package org.bigbluebutton.main.model.users
         if (result.response.hasOwnProperty("modOnlyMessage")) {
           apiResponse.modOnlyMessage = result.response.modOnlyMessage;
         }
-        
+				
+				apiResponse.customLogo = result.response.customLogoURL;
+        apiResponse.customCopyright = result.response.customCopyright;
+				apiResponse.muteOnStart = result.response.muteOnStart as Boolean;
+				
         if (_resultListener != null) _resultListener(true, apiResponse);
       }
       

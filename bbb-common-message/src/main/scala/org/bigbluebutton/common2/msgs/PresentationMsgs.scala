@@ -4,17 +4,7 @@ import org.bigbluebutton.common2.domain.PresentationVO
 
 
 // ------------ client to akka-apps ------------
-object SetCurrentPresentationPubMsg { val NAME = "SetCurrentPresentationPubMsg"}
-case class SetCurrentPresentationPubMsg(header: BbbClientMsgHeader, body: SetCurrentPresentationPubMsgBody) extends StandardMsg
-case class SetCurrentPresentationPubMsgBody(podId: String, presentationId: String)
 
-object ResizeAndMovePagePubMsg { val NAME = "ResizeAndMovePagePubMsg"}
-case class ResizeAndMovePagePubMsg(header: BbbClientMsgHeader, body: ResizeAndMovePagePubMsgBody) extends StandardMsg
-case class ResizeAndMovePagePubMsgBody(presentationId: String, pageId: String, xOffset: Double, yOffset: Double, widthRatio: Double, heightRatio: Double)
-
-object RemovePresentationPubMsg { val NAME = "RemovePresentationPubMsg"}
-case class RemovePresentationPubMsg(header: BbbClientMsgHeader, body: RemovePresentationPubMsgBody) extends StandardMsg
-case class RemovePresentationPubMsgBody(presentationId: String)
 // ------------ client to akka-apps ------------
 
 
@@ -37,24 +27,4 @@ case class PresenterUnassignedEvtMsgBody(intId: String, name: String, assignedBy
 object NewPresentationEvtMsg { val NAME = "NewPresentationEvtMsg"}
 case class NewPresentationEvtMsg(header: BbbClientMsgHeader, body: NewPresentationEvtMsgBody) extends BbbCoreMsg
 case class NewPresentationEvtMsgBody(presentation: PresentationVO)
-
-object SetCurrentPresentationEvtMsg { val NAME = "SetCurrentPresentationEvtMsg"}
-case class SetCurrentPresentationEvtMsg(header: BbbClientMsgHeader, body: SetCurrentPresentationEvtMsgBody) extends BbbCoreMsg
-case class SetCurrentPresentationEvtMsgBody(podId: String, presentationId: String)
-
-object ResizeAndMovePageEvtMsg { val NAME = "ResizeAndMovePageEvtMsg"}
-case class ResizeAndMovePageEvtMsg(header: BbbClientMsgHeader, body: ResizeAndMovePageEvtMsgBody) extends BbbCoreMsg
-case class ResizeAndMovePageEvtMsgBody(presentationId: String, pageId: String, xOffset: Double, yOffset: Double, widthRatio: Double, heightRatio: Double)
-
-object RemovePresentationEvtMsg { val NAME = "RemovePresentationEvtMsg"}
-case class RemovePresentationEvtMsg(header: BbbClientMsgHeader, body: RemovePresentationEvtMsgBody) extends BbbCoreMsg
-case class RemovePresentationEvtMsgBody(presentationId: String)
-
-
-// html5 client only
-object SyncGetPresentationInfoRespMsg { val NAME = "SyncGetPresentationInfoRespMsg"}
-case class SyncGetPresentationInfoRespMsg(header: BbbClientMsgHeader, body: SyncGetPresentationInfoRespMsgBody) extends BbbCoreMsg
-case class SyncGetPresentationInfoRespMsgBody(presentations: Vector[PresentationVO])
 // ------------ akka-apps to client ------------
-
-

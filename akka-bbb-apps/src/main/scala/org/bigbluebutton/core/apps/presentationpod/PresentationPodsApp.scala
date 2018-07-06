@@ -3,16 +3,16 @@ package org.bigbluebutton.core.apps.presentationpod
 import org.bigbluebutton.common2.domain._
 import org.bigbluebutton.core.domain._
 import org.bigbluebutton.core.models._
+import org.bigbluebutton.core.util.RandomStringGenerator
 
 object PresentationPodsApp {
 
-  def createPresentationPod(ownerId: String): PresentationPod = {
-    PresentationPodFactory.create(ownerId)
+  def createPresentationPod(creatorId: String): PresentationPod = {
+    PresentationPodFactory.create(creatorId)
   }
 
   def createDefaultPresentationPod(state: MeetingState2x): MeetingState2x = {
-    val defaultPresPod = PresentationPodFactory.create("the-owner-id")
-    val podManager = state.presentationPodManager.addPod(defaultPresPod)
+    val podManager = state.presentationPodManager.addPod(PresentationPodFactory.createDefaultPod())
     state.update(podManager)
   }
 
@@ -23,6 +23,15 @@ object PresentationPodsApp {
 
   def getPresentationPod(state: MeetingState2x, podId: String): Option[PresentationPod] = {
     state.presentationPodManager.getPod(podId)
+  }
+
+  def getPresentationPodIfPresenter(state: MeetingState2x, podId: String, userId: String): Option[PresentationPod] = {
+    for {
+      pod <- getPresentationPod(state, podId)
+      if pod.currentPresenter == userId
+    } yield {
+      pod
+    }
   }
 
   def getAllPresentationPodsInMeeting(state: MeetingState2x): Vector[PresentationPod] = {
@@ -36,8 +45,11 @@ object PresentationPodsApp {
     val presentationVOs = presentationObjects.values.map(p => PresentationVO(p.id, p.name, p.current,
       p.pages.values.toVector, p.downloadable)).toVector
 
-    PresentationPodVO(pod.id, pod.ownerId, pod.currentPresenter,
-      pod.authorizedPresenters, presentationVOs)
+    PresentationPodVO(pod.id, pod.currentPresenter, presentationVOs)
+  }
+
+  def findPodsWhereUserIsPresenter(mgr: PresentationPodManager, userId: String): Vector[PresentationPod] = {
+    mgr.presentationPods.values.toVector.filter(p => p.currentPresenter == userId)
   }
 
   def updatePresentationPod(state: MeetingState2x, pod: PresentationPod): MeetingState2x = {
@@ -49,5 +61,17 @@ object PresentationPodsApp {
     PresentationVO(pres.id, pres.name, pres.current, pres.pages.values.toVector, pres.downloadable)
   }
 
+  def setCurrentPresentationInPod(state: MeetingState2x, podId: String, nextCurrentPresId: String): Option[PresentationPod] = {
+    for {
+      pod <- getPresentationPod(state, podId)
+      updatedPod <- pod.setCurrentPresentation(nextCurrentPresId)
+    } yield {
+      updatedPod
+    }
+  }
+
+  def generateToken(podId: String, userId: String): String = {
+    "PresUploadToken-" + RandomStringGenerator.randomAlphanumericString(8) + podId + "-" + userId
+  }
 }
 
