@@ -1,16 +1,18 @@
 import React from 'react';
+import { Meteor } from 'meteor/meteor';
 import { withTracker } from 'meteor/react-meteor-data';
 import { withRouter } from 'react-router';
 import Meetings from '/imports/api/meetings';
 import Auth from '/imports/ui/services/auth';
 import { meetingIsBreakout } from '/imports/ui/components/app/service';
+import getFromUserSettings from '/imports/ui/services/users-settings';
 import userListService from '../user-list/service';
 import ChatService from '../chat/service';
 import Service from './service';
 import NavBar from './component';
 
-const CHAT_CONFIG = Meteor.settings.public.chat;
-const PUBLIC_CHAT_KEY = CHAT_CONFIG.public_id;
+const PUBLIC_CONFIG = Meteor.settings.public;
+const PUBLIC_GROUP_CHAT_ID = PUBLIC_CONFIG.chat.public_group_id;
 
 const NavBarContainer = ({ children, ...props }) => (
   <NavBar {...props}>
@@ -19,6 +21,8 @@ const NavBarContainer = ({ children, ...props }) => (
 );
 
 export default withRouter(withTracker(({ location, router }) => {
+  const CLIENT_TITLE = getFromUserSettings('clientTitle', PUBLIC_CONFIG.app.clientTitle);
+
   let meetingTitle;
   let meetingRecorded;
 
@@ -29,7 +33,8 @@ export default withRouter(withTracker(({ location, router }) => {
 
   if (meetingObject != null) {
     meetingTitle = meetingObject.meetingProp.name;
-    meetingRecorded = meetingObject.currentlyBeingRecorded;
+    meetingRecorded = meetingObject.recordProp;
+    document.title = `${CLIENT_TITLE} - ${meetingTitle}`;
   }
 
   const checkUnreadMessages = () => {
@@ -42,7 +47,7 @@ export default withRouter(withTracker(({ location, router }) => {
     return users
       .map(user => user.id)
       .filter(userID => userID !== Auth.userID)
-      .concat(PUBLIC_CHAT_KEY)
+      .concat(PUBLIC_GROUP_CHAT_ID)
       .some(receiverID => ChatService.hasUnreadMessages(receiverID));
   };
 
@@ -56,7 +61,6 @@ export default withRouter(withTracker(({ location, router }) => {
     breakouts,
     currentUserId,
     meetingId,
-    getBreakoutJoinURL: Service.getBreakoutJoinURL,
     presentationTitle: meetingTitle,
     hasUnreadMessages: checkUnreadMessages(),
     isBreakoutRoom: meetingIsBreakout(),

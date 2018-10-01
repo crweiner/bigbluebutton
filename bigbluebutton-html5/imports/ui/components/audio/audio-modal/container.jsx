@@ -1,26 +1,43 @@
 import React from 'react';
 import { withTracker } from 'meteor/react-meteor-data';
 import { withModalMounter } from '/imports/ui/components/modal/service';
+import browser from 'browser-detect';
+import getFromUserSettings from '/imports/ui/services/users-settings';
 import AudioModal from './component';
 import Service from '../service';
 
 const AudioModalContainer = props => <AudioModal {...props} />;
 
-export default withModalMounter(withTracker(({ mountModal }) =>
-  ({
+const APP_CONFIG = Meteor.settings.public.app;
+
+
+export default withModalMounter(withTracker(({ mountModal }) => {
+  const listenOnlyMode = getFromUserSettings('listenOnlyMode', APP_CONFIG.listenOnlyMode);
+  const forceListenOnly = getFromUserSettings('forceListenOnly', APP_CONFIG.forceListenOnly);
+  const skipCheck = getFromUserSettings('skipCheck', APP_CONFIG.skipCheck);
+
+  return ({
     closeModal: () => {
       if (!Service.isConnecting()) mountModal(null);
     },
-    joinMicrophone: () =>
-      new Promise((resolve, reject) => {
-        Service.transferCall().then(() => {
-          mountModal(null);
-          resolve();
-        }).catch(() => {
+    joinMicrophone: () => {
+      const call = new Promise((resolve, reject) => {
+        if (skipCheck) {
+          resolve(Service.joinMicrophone());
+        } else {
+          resolve(Service.transferCall());
+        }
+        reject(() => {
           Service.exitAudio();
-          reject();
         });
-      }),
+      });
+
+      return call.then(() => {
+        mountModal(null);
+      }).catch((error) => {
+        throw error;
+      });
+    },
     joinListenOnly: () => Service.joinListenOnly().then(() => mountModal(null)),
     leaveEchoTest: () => {
       if (!Service.isEchoTest()) {
@@ -38,4 +55,12 @@ export default withModalMounter(withTracker(({ mountModal }) =>
     inputDeviceId: Service.inputDeviceId(),
     outputDeviceId: Service.outputDeviceId(),
     showPermissionsOvelay: Service.isWaitingPermissions(),
-  }))(AudioModalContainer));
+    listenOnlyMode,
+    skipCheck,
+    audioLocked: Service.audioLocked(),
+    joinFullAudioImmediately: !listenOnlyMode && skipCheck,
+    joinFullAudioEchoTest: !listenOnlyMode && !skipCheck,
+    forceListenOnlyAttendee: listenOnlyMode && forceListenOnly && !Service.isUserModerator(),
+    isIOSChrome: browser().name === 'crios',
+  });
+})(AudioModalContainer));

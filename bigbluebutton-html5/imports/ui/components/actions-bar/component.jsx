@@ -1,10 +1,10 @@
 import React from 'react';
 import cx from 'classnames';
 import { styles } from './styles.scss';
-import EmojiSelect from './emoji-select/component';
+import DesktopShare from './desktop-share/component';
 import ActionsDropdown from './actions-dropdown/component';
 import AudioControlsContainer from '../audio/audio-controls/container';
-import JoinVideoOptionsContainer from '../video-dock/video-menu/container';
+import JoinVideoOptionsContainer from '../video-provider/video-menu/container';
 
 class ActionsBar extends React.PureComponent {
   render() {
@@ -15,10 +15,18 @@ class ActionsBar extends React.PureComponent {
       handleShareScreen,
       handleUnshareScreen,
       isVideoBroadcasting,
-      emojiList,
-      emojiSelected,
-      handleEmojiChange,
+      isUserModerator,
+      recordSettingsList,
+      toggleRecording,
+      screenSharingCheck,
+      enableVideo,
     } = this.props;
+
+    const {
+      allowStartStopRecording,
+      recording: isRecording,
+      record,
+    } = recordSettingsList;
 
     const actionBarClasses = {};
     actionBarClasses[styles.centerWithActions] = isUserPresenter;
@@ -29,21 +37,30 @@ class ActionsBar extends React.PureComponent {
         <div className={styles.left}>
           <ActionsDropdown {...{
             isUserPresenter,
-            handleShareScreen,
-            handleUnshareScreen,
-            isVideoBroadcasting,
-            }}
+            isUserModerator,
+            allowStartStopRecording,
+            isRecording,
+            record,
+            toggleRecording,
+          }}
           />
         </div>
         <div className={isUserPresenter ? cx(styles.centerWithActions, actionBarClasses) : styles.center}>
           <AudioControlsContainer />
-          {Meteor.settings.public.kurento.enableVideo ?
+          {enableVideo ?
             <JoinVideoOptionsContainer
               handleJoinVideo={handleJoinVideo}
               handleCloseVideo={handleExitVideo}
             />
             : null}
-          <EmojiSelect options={emojiList} selected={emojiSelected} onChange={handleEmojiChange} />
+          <DesktopShare {...{
+              handleShareScreen,
+              handleUnshareScreen,
+              isVideoBroadcasting,
+              isUserPresenter,
+              screenSharingCheck,
+            }}
+          />
         </div>
       </div>
     );

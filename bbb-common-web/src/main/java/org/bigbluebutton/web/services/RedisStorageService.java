@@ -19,23 +19,25 @@
 
 package org.bigbluebutton.web.services;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.bigbluebutton.api.domain.Poll;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 public class RedisStorageService implements IStorageService{
 	JedisPool jedisPool;
 
-	private final String SEPARATOR = ":";
-	private final String ID_SEED = "nextID";
+	private static final String SEPARATOR = ":";
+	private static final String ID_SEED = "nextID";
 
 	/* Meeting Patterns */
-	private final String MEETING = "meeting";
-	private final String POLL = "poll";
-	private final String POLL_ANSWER = "answer";
-	private final String POLL_RESULTS = "results";
+	private static final String MEETING = "meeting";
+	private static final String POLL = "poll";
+	private static final String POLL_ANSWER = "answer";
+	private static final String POLL_RESULTS = "results";
 
 	/*
 meeting:<id>:poll:list [1,2,3] <-- list

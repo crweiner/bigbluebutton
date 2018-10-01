@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { withTracker } from 'meteor/react-meteor-data';
 import { meetingIsBreakout } from '/imports/ui/components/app/service';
 import Meetings from '/imports/api/meetings';
+import getFromUserSettings from '/imports/ui/services/users-settings';
 import Service from './service';
 import UserList from './component';
 
@@ -22,55 +23,18 @@ const propTypes = {
   toggleVoice: PropTypes.func.isRequired,
   changeRole: PropTypes.func.isRequired,
   roving: PropTypes.func.isRequired,
+  getGroupChatPrivate: PropTypes.func.isRequired,
 };
 
-const UserListContainer = (props) => {
-  const {
-    users,
-    currentUser,
-    openChats,
-    isBreakoutRoom,
-    meeting,
-    getAvailableActions,
-    normalizeEmojiName,
-    isMeetingLocked,
-    isPublicChat,
-    setEmojiStatus,
-    assignPresenter,
-    removeUser,
-    toggleVoice,
-    changeRole,
-    roving,
-  } = props;
-
-  return (
-    <UserList
-      users={users}
-      meeting={meeting}
-      currentUser={currentUser}
-      openChats={openChats}
-      isBreakoutRoom={isBreakoutRoom}
-      setEmojiStatus={setEmojiStatus}
-      assignPresenter={assignPresenter}
-      removeUser={removeUser}
-      toggleVoice={toggleVoice}
-      changeRole={changeRole}
-      getAvailableActions={getAvailableActions}
-      normalizeEmojiName={normalizeEmojiName}
-      isMeetingLocked={isMeetingLocked}
-      isPublicChat={isPublicChat}
-      roving={roving}
-    />
-  );
-};
+const UserListContainer = props => <UserList {...props} />;
 
 UserListContainer.propTypes = propTypes;
 
-export default withTracker(({ params }) => ({
+export default withTracker(({ chatID, compact }) => ({
   users: Service.getUsers(),
   meeting: Meetings.findOne({}),
   currentUser: Service.getCurrentUser(),
-  openChats: Service.getOpenChats(params.chatID),
+  openChats: Service.getOpenChats(chatID),
   isBreakoutRoom: meetingIsBreakout(),
   getAvailableActions: Service.getAvailableActions,
   normalizeEmojiName: Service.normalizeEmojiName,
@@ -82,4 +46,11 @@ export default withTracker(({ params }) => ({
   toggleVoice: Service.toggleVoice,
   changeRole: Service.changeRole,
   roving: Service.roving,
+  CustomLogoUrl: Service.getCustomLogoUrl(),
+  compact,
+  getGroupChatPrivate: Service.getGroupChatPrivate,
+  handleEmojiChange: Service.setEmojiStatus,
+  getEmojiList: Service.getEmojiList(),
+  getEmoji: Service.getEmoji(),
+  showBranding: getFromUserSettings('displayBrandingArea', Meteor.settings.public.app.branding.displayBrandingArea),
 }))(UserListContainer);
